@@ -32,7 +32,7 @@ pip install url2pdf
 playwright install chromium
 ```
 
-*Requires **Python 3.10+**. The url2pdf package itself is very lightweight (~15KB), but it requires downloading the Playwright Chromium browser binaries (~100-150MB) on the first install.*
+*Requires **Python 3.10+**. The url2pdf package itself is very lightweight (approx. 15KB), but it requires downloading the Playwright Chromium browser binaries (approx. 100-150MB) on the first install.*
 
 ---
 

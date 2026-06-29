@@ -32,7 +32,7 @@ pip install url2pdf
 playwright install chromium
 ```
 
-* **Python 3.10 이상**이 필요합니다. url2pdf 패키지 자체는 매우 가볍지만(~15KB), 첫 설치 시 Playwright 구동을 위한 Chromium 브라우저 바이너리(약 100~150MB) 다운로드가 필요합니다.*
+* **Python 3.10 이상**이 필요합니다. url2pdf 패키지 자체는 매우 가볍지만(약 15KB), 첫 설치 시 Playwright 구동을 위한 Chromium 브라우저 바이너리(약 100-150MB) 다운로드가 필요합니다.*
 
 ---
 
