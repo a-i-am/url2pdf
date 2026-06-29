@@ -296,7 +296,8 @@ def convert(
                 ),
                 extra_http_headers={
                     "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                              "image/avif,image/webp,*/*;q=0.8",
                 },
             )
             context.add_init_script(
@@ -392,12 +393,13 @@ def convert(
                     },
                     scale=scale,
                 )
-            except Exception as first_exc:
+            except Exception:
                 log("  [warn] PDF generation failed, retrying with minimal DOM...")
                 try:
                     page.evaluate(
                         "() => { "
-                        "document.querySelectorAll('script,style,noscript,iframe').forEach(e => e.remove()); "
+                        "const els = document.querySelectorAll('script,style,noscript,iframe');"
+                        "els.forEach(e => e.remove()); "
                         "document.documentElement.style.cssText = 'height:auto;overflow:visible;'; "
                         "document.body.style.cssText = 'height:auto;overflow:visible;margin:0;'; "
                         "}"
