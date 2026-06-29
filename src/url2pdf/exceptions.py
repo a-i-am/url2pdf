@@ -1,4 +1,4 @@
-"""url2pdf — custom exceptions."""
+"""url2pdf - custom exceptions."""
 
 
 class Url2PdfError(Exception):

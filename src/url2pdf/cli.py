@@ -1,4 +1,4 @@
-"""url2pdf — command-line interface."""
+"""url2pdf - command-line interface."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ examples:
   url2pdf https://example.com
   url2pdf https://example.com -o report.pdf
   url2pdf https://example.com --format Letter --scale 0.85 --timeout 90
+  url2pdf https://example.com --headed --manual-verification
   url2pdf https://example.com -q          # suppress progress output
 """,
     )
@@ -32,14 +33,14 @@ examples:
         "--format",
         default="A4",
         metavar="FORMAT",
-        help="paper format: A4, Letter, A3, … (default: A4)",
+        help="paper format: A4, Letter, A3, etc. (default: A4)",
     )
     parser.add_argument(
         "--scale",
         type=float,
         default=0.9,
         metavar="SCALE",
-        help="CSS scale factor 0.1–2.0 (default: 0.9)",
+        help="CSS scale factor 0.1-2.0 (default: 0.9)",
     )
     parser.add_argument(
         "--timeout",
@@ -55,6 +56,16 @@ examples:
         metavar="N",
         dest="scroll_rounds",
         help="max scroll iterations for lazy content (default: 80)",
+    )
+    parser.add_argument(
+        "--headed",
+        action="store_true",
+        help="show the Chromium browser window instead of running headless",
+    )
+    parser.add_argument(
+        "--manual-verification",
+        action="store_true",
+        help="pause when browser verification is detected so it can be completed manually",
     )
     parser.add_argument(
         "-q", "--quiet",
@@ -80,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
             page_format=args.format,
             scale=args.scale,
             verbose=not args.quiet,
+            headless=not args.headed,
+            manual_verification=args.manual_verification,
         )
         return 0
     except Url2PdfError as exc:
