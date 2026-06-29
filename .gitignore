@@ -14,5 +14,16 @@ venv/
 htmlcov/
 .coverage
 *.pdf
+*.png
+*.log
+
+# Project-specific logs & tests
+scratch/
+test_results/
+SESSION_SUMMARY.md
+Conversion Test Suite.md
+SETUP_GITHUB_PAT_GUIDE.md
+
+# Prototype
 prototype/*.md
 prototype/old/
