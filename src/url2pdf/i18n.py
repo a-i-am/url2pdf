@@ -29,6 +29,15 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_preview_pdf": "Preview PDF",
         "gui_enable_ocr": "Enable OCR",
         "gui_enable_ocr_disabled": "Enable OCR (Needs url2pdf[ocr])",
+        "gui_ocr_install_title": "Install OCR Dependencies",
+        "gui_ocr_install_msg": (
+            "OCR dependencies (pytesseract, Pillow) are missing. "
+            "Would you like to install them now?"
+        ),
+        "gui_ocr_installing_title": "Installing...",
+        "gui_ocr_installing_msg": "Installing OCR dependencies. Please wait...",
+        "gui_ocr_install_success": "OCR dependencies installed successfully!",
+        "gui_ocr_install_fail": "Failed to install dependencies:",
         "gui_log_lang": "Language:",
         "gui_lang_auto": "Auto",
         "gui_lang_ko": "KO",
@@ -112,6 +121,15 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_preview_pdf": "완료 후 PDF 열기",
         "gui_enable_ocr": "OCR 활성화",
         "gui_enable_ocr_disabled": "OCR 활성화 (설치 필요: pip install url2pdf[ocr])",
+        "gui_ocr_install_title": "OCR 패키지 설치",
+        "gui_ocr_install_msg": (
+            "OCR 기능을 사용하기 위한 패키지(pytesseract, Pillow)가 설치되어 있지 않습니다. "
+            "지금 설치하시겠습니까?"
+        ),
+        "gui_ocr_installing_title": "설치 중...",
+        "gui_ocr_installing_msg": "패키지를 설치하고 있습니다. 잠시만 기다려주세요...",
+        "gui_ocr_install_success": "OCR 패키지 설치가 완료되었습니다!",
+        "gui_ocr_install_fail": "설치에 실패했습니다:",
         "gui_log_lang": "표시 언어:",
         "gui_lang_auto": "자동(Auto)",
         "gui_lang_ko": "한국어",

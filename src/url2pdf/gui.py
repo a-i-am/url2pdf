@@ -112,17 +112,18 @@ class Url2PdfApp:
         self._register(chk_preview, "gui_preview_pdf")
 
         import importlib.util
-        has_ocr = importlib.util.find_spec("pytesseract") is not None
+        self.has_ocr = importlib.util.find_spec("pytesseract") is not None
 
         self.ocr_var = tk.BooleanVar(value=False)
-        chk_ocr = tk.Checkbutton(root, variable=self.ocr_var)
-        chk_ocr.grid(row=5, column=1, columnspan=2, sticky="w", padx=10, pady=5)
+        self.chk_ocr = tk.Checkbutton(root, variable=self.ocr_var)
+        self.chk_ocr.grid(row=5, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         
-        if has_ocr:
-            self._register(chk_ocr, "gui_enable_ocr")
+        if self.has_ocr:
+            self._register(self.chk_ocr, "gui_enable_ocr")
         else:
-            chk_ocr.config(state="disabled")
-            self._register(chk_ocr, "gui_enable_ocr_disabled")
+            self.chk_ocr.config(state="disabled")
+            self._register(self.chk_ocr, "gui_enable_ocr_disabled")
+            self.root.after(500, self.prompt_install_ocr)
 
         lbl_lang = tk.Label(root)
         lbl_lang.grid(row=6, column=0, sticky="w", padx=10, pady=5)
@@ -181,6 +182,52 @@ class Url2PdfApp:
         )
         if path:
             self.recipe_var.set(path)
+
+    def prompt_install_ocr(self) -> None:
+        if messagebox.askyesno(
+            self._("gui_ocr_install_title"),
+            self._("gui_ocr_install_msg"),
+            parent=self.root
+        ):
+            self.install_ocr()
+
+    def install_ocr(self) -> None:
+        import subprocess
+        import sys
+        
+        top = tk.Toplevel(self.root)
+        top.title(self._("gui_ocr_installing_title"))
+        tk.Label(top, text=self._("gui_ocr_installing_msg"), padx=20, pady=20).pack()
+        top.transient(self.root)
+        top.grab_set()
+        top.update()
+        
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "pytesseract", "Pillow"],
+                check=True,
+                capture_output=True
+            )
+            self.has_ocr = True
+            self.chk_ocr.config(state="normal")
+            for idx, (w, k) in enumerate(self._registry):
+                if w == self.chk_ocr:
+                    self._registry[idx] = (self.chk_ocr, "gui_enable_ocr")
+                    break
+            self.chk_ocr.config(text=self._("gui_enable_ocr"))
+            messagebox.showinfo(
+                self._("gui_ocr_install_title"), 
+                self._("gui_ocr_install_success"), 
+                parent=self.root
+            )
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror(
+                "Error", 
+                f"{self._('gui_ocr_install_fail')}\n{e.stderr.decode()}", 
+                parent=self.root
+            )
+        finally:
+            top.destroy()
 
     def show_recipe_help(self) -> None:
         messagebox.showinfo(
