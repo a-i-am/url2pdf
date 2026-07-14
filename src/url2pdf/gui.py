@@ -84,7 +84,7 @@ class Url2PdfApp:
 
         self.profile_var = tk.StringVar(value="faithful")
         profile_frame = tk.Frame(root)
-        profile_frame.grid(row=3, column=1, sticky="w", padx=10, pady=5)
+        profile_frame.grid(row=3, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         
         rb_faith = tk.Radiobutton(profile_frame, variable=self.profile_var, value="faithful")
         rb_faith.pack(side="left")
@@ -110,7 +110,7 @@ class Url2PdfApp:
 
         self.ocr_var = tk.BooleanVar(value=False)
         chk_ocr = tk.Checkbutton(root, variable=self.ocr_var)
-        chk_ocr.grid(row=5, column=1, sticky="w", padx=10, pady=5)
+        chk_ocr.grid(row=5, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         self._register(chk_ocr, "gui_enable_ocr")
 
         lbl_lang = tk.Label(root)
@@ -118,7 +118,7 @@ class Url2PdfApp:
         self._register(lbl_lang, "gui_log_lang")
 
         lang_frame = tk.Frame(root)
-        lang_frame.grid(row=6, column=1, sticky="w", padx=10, pady=5)
+        lang_frame.grid(row=6, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         
         rb_lang_auto = tk.Radiobutton(lang_frame, variable=self.lang_var, value="auto")
         rb_lang_auto.pack(side="left")
