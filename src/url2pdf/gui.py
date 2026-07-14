@@ -176,7 +176,7 @@ class Url2PdfApp:
         from tkinter import simpledialog
         
         top = tk.Toplevel(self.root)
-        top.title("Recipe Builder")
+        top.title(self._("gui_recipe_builder_title"))
         top.geometry("450x350")
         top.transient(self.root)
         top.grab_set()
@@ -190,16 +190,25 @@ class Url2PdfApp:
             listbox.delete(0, tk.END)
             for idx, a in enumerate(actions):
                 if a["action"] == "wait":
-                    listbox.insert(tk.END, f"{idx+1}. Wait {a['ms']}ms")
+                    listbox.insert(
+                        tk.END, 
+                        f"{idx+1}. {self._('gui_recipe_wait')} {a['ms']}ms"
+                    )
                 elif a["action"] == "click":
-                    listbox.insert(tk.END, f"{idx+1}. Click '{a['selector']}' (optional)")
+                    listbox.insert(
+                        tk.END, 
+                        f"{idx+1}. {self._('gui_recipe_click')} '{a['selector']}' (optional)"
+                    )
                 elif a["action"] == "scroll":
-                    listbox.insert(tk.END, f"{idx+1}. Scroll Page")
+                    listbox.insert(
+                        tk.END, 
+                        f"{idx+1}. {self._('gui_recipe_scroll')} Page"
+                    )
 
         def add_wait() -> None:
             ms = simpledialog.askinteger(
-                "Wait", 
-                "Milliseconds to wait (e.g., 2000):", 
+                self._("gui_recipe_wait_title"), 
+                self._("gui_recipe_wait_prompt"), 
                 parent=top, 
                 minvalue=0, 
                 maxvalue=60000
@@ -210,8 +219,8 @@ class Url2PdfApp:
                 
         def add_click() -> None:
             sel = simpledialog.askstring(
-                "Click", 
-                "CSS Selector to click (e.g., .cookie-btn):", 
+                self._("gui_recipe_click_title"), 
+                self._("gui_recipe_click_prompt"), 
                 parent=top
             )
             if sel:
@@ -224,7 +233,11 @@ class Url2PdfApp:
             
         def save_recipe() -> None:
             if not actions:
-                messagebox.showwarning("Empty", "No actions added.", parent=top)
+                messagebox.showwarning(
+                    self._("gui_recipe_err_empty_title"), 
+                    self._("gui_recipe_err_empty_msg"), 
+                    parent=top
+                )
                 return
             path = filedialog.asksaveasfilename(
                 defaultextension=".json", 
@@ -238,20 +251,37 @@ class Url2PdfApp:
                     self.recipe_var.set(path)
                     top.destroy()
                 except Exception as e:
-                    messagebox.showerror("Error", f"Failed to save recipe: {e}", parent=top)
+                    messagebox.showerror(
+                        self._("gui_recipe_err_save_title"), 
+                        self._("gui_recipe_err_save_msg", e=e), 
+                        parent=top
+                    )
                 
         btn_frame = tk.Frame(top)
         btn_frame.pack(fill="x", padx=10, pady=10)
         
-        tk.Button(btn_frame, text="+ Wait", command=add_wait, width=8).pack(side="left", padx=2)
         tk.Button(
-            btn_frame, text="+ Click", command=add_click, width=8
+            btn_frame, 
+            text=f"+ {self._('gui_recipe_wait_title')}", 
+            command=add_wait, 
+            width=12
         ).pack(side="left", padx=2)
         tk.Button(
-            btn_frame, text="+ Scroll", command=add_scroll, width=8
+            btn_frame, 
+            text=f"+ {self._('gui_recipe_click_title')}", 
+            command=add_click, 
+            width=12
         ).pack(side="left", padx=2)
         tk.Button(
-            btn_frame, text="Save JSON", command=save_recipe, bg="#2196F3", fg="white", width=10
+            btn_frame, text=f"+ {self._('gui_recipe_scroll')}", command=add_scroll, width=12
+        ).pack(side="left", padx=2)
+        tk.Button(
+            btn_frame, 
+            text=self._("gui_recipe_save_btn"), 
+            command=save_recipe, 
+            bg="#2196F3", 
+            fg="white", 
+            width=12
         ).pack(side="right", padx=2)
 
     def start_conversion(self) -> None:

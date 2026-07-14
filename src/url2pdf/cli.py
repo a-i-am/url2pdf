@@ -169,6 +169,8 @@ Run with --test-recipe --recipe <recipe> to see it in action without saving a PD
 """)
         return 0
 
+    if args.url and args.batch:
+        parser.error("arguments url and --batch are mutually exclusive")
     if not args.url and not args.batch:
         parser.error("either url or --batch must be provided")
 

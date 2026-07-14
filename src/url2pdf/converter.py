@@ -252,7 +252,7 @@ PRESET_RECIPES = {
     ]
 }
 
-def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> None:
+def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, translate: Any) -> None:
     if recipe_path_or_preset in PRESET_RECIPES:
         recipe_data = PRESET_RECIPES[recipe_path_or_preset]
     else:
@@ -276,9 +276,9 @@ def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> Non
             ms = step.get("ms")
             if not isinstance(ms, int) or not (0 <= ms <= 60000):
                 raise Url2PdfError(
-                    f"Recipe step {idx} 'wait' requires integer 'ms' between 0 and 60000."
+                    translate("recipe_waiting", ms=ms) + f" (Invalid ms: {ms})"
                 )
-            log(_("recipe_waiting", ms=ms))
+            log(translate("recipe_waiting", ms=ms))
             page.wait_for_timeout(ms)
             
         elif action == "click":
@@ -288,7 +288,7 @@ def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> Non
                 if optional:
                     continue
                 raise Url2PdfError(f"Recipe step {idx} 'click' requires 'selector'.")
-            log(_("recipe_clicking", selector=selector))
+            log(translate("recipe_clicking", selector=selector))
             try:
                 page.locator(selector).click(timeout=5000)
             except Exception as e:
@@ -300,7 +300,7 @@ def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> Non
         elif action == "scroll":
             selector = step.get("selector")
             if selector:
-                log(_("recipe_scrolling_element", selector=selector))
+                log(translate("recipe_scrolling_element", selector=selector))
                 try:
                     page.evaluate(
                         "(sel) => { "
@@ -314,7 +314,7 @@ def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> Non
                         f"Recipe step {idx} failed to scroll '{selector}': {e}"
                     ) from e
             else:
-                log(_("recipe_scrolling_page"))
+                log(translate("recipe_scrolling_page"))
                 page.evaluate("window.scrollTo(0, document.body ? document.body.scrollHeight : 0)")
 
 
@@ -417,9 +417,8 @@ def convert(
         log(f"[1/1] Checking HTTP connection: {url}")
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                if response.status >= 400:
-                    raise PageLoadError(f"HTTP Error {response.status}")
+            with urllib.request.urlopen(req, timeout=timeout):
+                pass
         except (urllib.error.URLError, ValueError) as exc:
             raise PageLoadError(f"Connection failed: {exc}")
         return None
@@ -533,7 +532,10 @@ def convert(
                 pass
 
             title = page.title() or "page"
-            dest = Path(output) if output else Path(make_filename(title))
+            if output and Path(output).is_dir():
+                dest = Path(output) / make_filename(title)
+            else:
+                dest = Path(output) if output else Path(make_filename(title))
 
             if ocr:
                 log(_("generating_pdf", dest=dest))
@@ -563,19 +565,24 @@ def convert(
             page.evaluate(_JS_PREPARE_FOR_PRINT)
             time.sleep(0.8)
 
-            dest = Path(output) if output else Path(make_filename(title))
-
+            if output and Path(output).is_dir():
+                dest = Path(output) / make_filename(title)
+            else:
+                dest = Path(output) if output else Path(make_filename(title))
             if profile == "reading":
                 log(_("applying_reading"))
                 try:
                     page.evaluate('''
-                        document.querySelectorAll(
-                            'header, footer, nav, aside, .ad, .advertisement, iframe, .social-share'
-                        ).forEach(el => el.remove());
-                        document.body.style.maxWidth = '800px';
-                        document.body.style.margin = '0 auto';
-                        document.body.style.fontSize = '18px';
-                        document.body.style.lineHeight = '1.6';
+                        if (document.body) {
+                            document.querySelectorAll(
+                                'header, footer, nav, aside, .ad, ' +
+                                '.advertisement, iframe, .social-share'
+                            ).forEach(el => el.remove());
+                            document.body.style.maxWidth = '800px';
+                            document.body.style.margin = '0 auto';
+                            document.body.style.fontSize = '18px';
+                            document.body.style.lineHeight = '1.6';
+                        }
                     ''')
                 except Exception as exc:
                     log(f"  [warn] Reading profile heuristic failed: {exc}")
