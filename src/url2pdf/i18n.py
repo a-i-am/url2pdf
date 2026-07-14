@@ -31,7 +31,9 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_enable_ocr_disabled": "Enable OCR (Needs url2pdf[ocr])",
         "gui_ocr_install_title": "Install OCR Dependencies",
         "gui_ocr_install_msg": (
-            "OCR dependencies (pytesseract, Pillow) are missing. "
+            "OCR dependencies (pytesseract, Pillow) are missing.\n"
+            "They will be installed to the current Python environment:\n"
+            "{path}\n\n"
             "Would you like to install them now?"
         ),
         "gui_ocr_installing_title": "Installing...",
@@ -123,7 +125,9 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_enable_ocr_disabled": "OCR 활성화 (설치 필요: pip install url2pdf[ocr])",
         "gui_ocr_install_title": "OCR 패키지 설치",
         "gui_ocr_install_msg": (
-            "OCR 기능을 사용하기 위한 패키지(pytesseract, Pillow)가 설치되어 있지 않습니다. "
+            "OCR 기능을 사용하기 위한 패키지(pytesseract, Pillow)가 설치되어 있지 않습니다.\n"
+            "현재 실행 중인 Python 환경에 설치됩니다:\n"
+            "{path}\n\n"
             "지금 설치하시겠습니까?"
         ),
         "gui_ocr_installing_title": "설치 중...",

@@ -184,9 +184,14 @@ class Url2PdfApp:
             self.recipe_var.set(path)
 
     def prompt_install_ocr(self) -> None:
+        import os
+        import sys
+        install_path = os.path.dirname(sys.executable)
+        msg = self._("gui_ocr_install_msg").format(path=install_path)
+        
         if messagebox.askyesno(
             self._("gui_ocr_install_title"),
-            self._("gui_ocr_install_msg"),
+            msg,
             parent=self.root
         ):
             self.install_ocr()
