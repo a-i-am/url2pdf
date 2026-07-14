@@ -188,21 +188,40 @@ class Url2PdfApp:
         self.convert_btn.config(state="disabled")
         self.status_var.set(self._("gui_status_converting"))
         
-        threading.Thread(target=self._run_convert, args=(url,), daemon=True).start()
+        args = (
+            url,
+            self.output_var.get(),
+            not self.headed_var.get(),
+            self.profile_var.get(),
+            self.preview_var.get(),
+            self.recipe_var.get() or None,
+            self.ocr_var.get(),
+            self.lang_var.get()
+        )
+        threading.Thread(target=self._run_convert, args=args, daemon=True).start()
 
-    def _run_convert(self, url: str) -> None:
-        output_path = self.output_var.get()
+    def _run_convert(
+        self,
+        url: str,
+        output_path: str,
+        headless: bool,
+        profile: str,
+        preview: bool,
+        recipe: str | None,
+        ocr: bool,
+        lang: str
+    ) -> None:
         try:
             is_dir = os.path.isdir(output_path)
             result_path = convert(
                 url=url,
                 output=None if is_dir else output_path,
-                headless=not self.headed_var.get(),
-                profile=self.profile_var.get(),
-                preview=self.preview_var.get(),
-                recipe=self.recipe_var.get() or None,
-                ocr=self.ocr_var.get(),
-                lang=self.lang_var.get(),
+                headless=headless,
+                profile=profile,
+                preview=preview,
+                recipe=recipe,
+                ocr=ocr,
+                lang=lang,
             )
             
             if is_dir and result_path:

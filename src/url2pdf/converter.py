@@ -121,7 +121,7 @@ _JS_DISMISS_OVERLAYS = """
         } catch (_) {}
     }
 
-    if (getComputedStyle(document.body).overflow === 'hidden') {
+    if (document.body && getComputedStyle(document.body).overflow === 'hidden') {
         document.body.style.overflow = 'auto';
     }
     if (getComputedStyle(document.documentElement).overflow === 'hidden') {
@@ -134,7 +134,7 @@ _JS_DISMISS_OVERLAYS = """
 
 _JS_FIND_SCROLLER = """
 () => {
-    let best = document.scrollingElement || document.body;
+    let best = document.scrollingElement || document.body || document.documentElement;
     let bestDiff = best.scrollHeight - best.clientHeight;
     for (const el of document.querySelectorAll('*')) {
         const diff = el.scrollHeight - el.clientHeight;
@@ -151,8 +151,10 @@ _JS_PREPARE_FOR_PRINT = """
 () => {
     document.documentElement.style.cssText +=
         ';height:auto!important;overflow:visible!important;';
-    document.body.style.cssText +=
-        ';height:auto!important;overflow:visible!important;max-width:none!important;';
+    if (document.body) {
+        document.body.style.cssText +=
+            ';height:auto!important;overflow:visible!important;max-width:none!important;';
+    }
 
     for (const el of document.querySelectorAll('*')) {
         try {
@@ -244,6 +246,8 @@ def _run_recipe(page: Page, recipe_path: str, log: Any, _: Any) -> None:
         raise Url2PdfError("Recipe must be a JSON array of actions.")
         
     for idx, step in enumerate(recipe_data):
+        if not isinstance(step, dict):
+            raise Url2PdfError(f"Invalid recipe step at index {idx}: must be an object.")
         action = step.get("action")
         if action not in ("click", "wait", "scroll"):
             raise Url2PdfError(f"Invalid recipe action at step {idx}: {action}")
@@ -291,7 +295,7 @@ def _run_recipe(page: Page, recipe_path: str, log: Any, _: Any) -> None:
                     ) from e
             else:
                 log(_("recipe_scrolling_page"))
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                page.evaluate("window.scrollTo(0, document.body ? document.body.scrollHeight : 0)")
 
 
 def convert(
@@ -392,7 +396,7 @@ def convert(
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 if response.status >= 400:
                     raise PageLoadError(f"HTTP Error {response.status}")
-        except urllib.error.URLError as exc:
+        except (urllib.error.URLError, ValueError) as exc:
             raise PageLoadError(f"Connection failed: {exc}")
         return None
 
@@ -491,7 +495,7 @@ def convert(
             
             dom_text_len = 0
             try:
-                dom_text_len = len(page.evaluate("document.body.innerText") or "")
+                dom_text_len = len(page.evaluate("document.body ? document.body.innerText : ''") or "")
             except Exception:
                 pass
 
@@ -594,7 +598,11 @@ def convert(
             if profile == "evidence":
                 log("Generating evidence metadata...")
                 dest_path = dest.resolve()
-                file_hash = hashlib.sha256(dest_path.read_bytes()).hexdigest()
+                hasher = hashlib.sha256()
+                with open(dest_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        hasher.update(chunk)
+                file_hash = hasher.hexdigest()
                 metadata = {
                     "url": url,
                     "timestamp": datetime.now().isoformat(),

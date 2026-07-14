@@ -136,11 +136,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.batch:
-            with open(args.batch, encoding="utf-8") as f:
-                lines = [
-                    line.strip() for line in f 
-                    if line.strip() and not line.strip().startswith("#")
-                ]
+            try:
+                with open(args.batch, encoding="utf-8") as f:
+                    lines = [
+                        line.strip() for line in f 
+                        if line.strip() and not line.strip().startswith("#")
+                    ]
+            except OSError as exc:
+                parser.error(f"Failed to read batch file: {exc}")
             
             for line in lines:
                 try:
