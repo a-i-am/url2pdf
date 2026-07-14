@@ -495,7 +495,8 @@ def convert(
             
             dom_text_len = 0
             try:
-                dom_text_len = len(page.evaluate("document.body ? document.body.innerText : ''") or "")
+                eval_script = "document.body ? document.body.innerText : ''"
+                dom_text_len = len(page.evaluate(eval_script) or "")
             except Exception:
                 pass
 
