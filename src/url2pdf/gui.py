@@ -111,10 +111,18 @@ class Url2PdfApp:
         chk_preview.grid(row=4, column=2, sticky="w", padx=10, pady=5)
         self._register(chk_preview, "gui_preview_pdf")
 
+        import importlib.util
+        has_ocr = importlib.util.find_spec("pytesseract") is not None
+
         self.ocr_var = tk.BooleanVar(value=False)
         chk_ocr = tk.Checkbutton(root, variable=self.ocr_var)
         chk_ocr.grid(row=5, column=1, columnspan=2, sticky="w", padx=10, pady=5)
-        self._register(chk_ocr, "gui_enable_ocr")
+        
+        if has_ocr:
+            self._register(chk_ocr, "gui_enable_ocr")
+        else:
+            chk_ocr.config(state="disabled")
+            self._register(chk_ocr, "gui_enable_ocr_disabled")
 
         lbl_lang = tk.Label(root)
         lbl_lang.grid(row=6, column=0, sticky="w", padx=10, pady=5)
