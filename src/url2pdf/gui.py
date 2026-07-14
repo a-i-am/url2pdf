@@ -116,7 +116,23 @@ class Url2PdfApp:
 
         self.ocr_var = tk.BooleanVar(value=False)
         self.chk_ocr = tk.Checkbutton(root, variable=self.ocr_var)
-        self.chk_ocr.grid(row=5, column=1, columnspan=2, sticky="w", padx=10, pady=5)
+        self.chk_ocr.grid(row=5, column=1, sticky="w", padx=10, pady=5)
+        
+        self.tess_cmd_var = tk.StringVar()
+        self.entry_tess_cmd = tk.Entry(root, textvariable=self.tess_cmd_var, state="disabled")
+        self.entry_tess_cmd.grid(row=5, column=2, sticky="ew", padx=10, pady=5)
+        
+        lbl_tess = tk.Label(root)
+        lbl_tess.grid(row=5, column=0, sticky="w", padx=10, pady=5)
+        self._register(lbl_tess, "gui_tesseract_cmd")
+        
+        self.btn_tess_browse = tk.Button(
+            root, text=self._("gui_browse"), command=self.browse_tesseract, state="disabled"
+        )
+        self.btn_tess_browse.grid(row=5, column=3, sticky="w", padx=10, pady=5)
+        self._register(self.btn_tess_browse, "gui_browse")
+        
+        self.ocr_var.trace_add("write", self._on_ocr_changed)
         
         if self.has_ocr:
             self._register(self.chk_ocr, "gui_enable_ocr")
@@ -175,6 +191,23 @@ class Url2PdfApp:
         )
         if path:
             self.output_var.set(path)
+
+    def _on_ocr_changed(self, *args: Any) -> None:
+        if self.ocr_var.get():
+            self.entry_tess_cmd.config(state="normal")
+            self.btn_tess_browse.config(state="normal")
+        else:
+            self.entry_tess_cmd.config(state="disabled")
+            self.btn_tess_browse.config(state="disabled")
+
+    def browse_tesseract(self) -> None:
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title=self._("gui_tesseract_cmd"),
+            filetypes=[("Executable", "*.exe"), ("All files", "*.*")]
+        )
+        if path:
+            self.tess_cmd_var.set(path)
 
     def browse_recipe(self) -> None:
         path = filedialog.askopenfilename(
@@ -385,6 +418,7 @@ class Url2PdfApp:
             self.preview_var.get(),
             self.recipe_var.get() or None,
             self.ocr_var.get(),
+            self.tess_cmd_var.get().strip() or None,
             self.lang_var.get()
         )
         threading.Thread(target=self._run_convert, args=args, daemon=True).start()
@@ -398,6 +432,7 @@ class Url2PdfApp:
         preview: bool,
         recipe: str | None,
         ocr: bool,
+        tess_cmd: str | None,
         lang: str
     ) -> None:
         try:
@@ -410,6 +445,7 @@ class Url2PdfApp:
                 preview=preview,
                 recipe=recipe,
                 ocr=ocr,
+                tesseract_cmd=tess_cmd,
                 lang=lang,
             )
             

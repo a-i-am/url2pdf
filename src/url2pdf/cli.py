@@ -79,6 +79,14 @@ examples:
         help="Language passed to Tesseract (e.g., 'eng', 'kor+eng') (default: eng)",
     )
     parser.add_argument(
+        "--tesseract-cmd",
+        metavar="PATH",
+        help=(
+            "Path to tesseract binary if not in PATH "
+            "(e.g., 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe')"
+        ),
+    )
+    parser.add_argument(
         "--lang",
         choices=["auto", "ko", "en"],
         default="auto",
@@ -233,6 +241,7 @@ Run with --test-recipe --recipe <recipe> to see it in action without saving a PD
                 recipe=args.recipe,
                 ocr=args.ocr,
                 ocr_lang=args.ocr_lang,
+                tesseract_cmd=args.tesseract_cmd,
                 lang=args.lang,
                 test_recipe=args.test_recipe,
             )

@@ -339,6 +339,7 @@ def convert(
     recipe: str | None = None,
     ocr: bool = False,
     ocr_lang: str = "eng",
+    tesseract_cmd: str | None = None,
     lang: str = "auto",
     test_recipe: bool = False,
 ) -> Path | None:
@@ -406,11 +407,15 @@ def convert(
             raise Url2PdfError(
                 "pytesseract is required for --ocr. Install it with: pip install 'url2pdf[ocr]'"
             ) from exc
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
         
-        if not shutil.which("tesseract"):
+        tess_bin = pytesseract.pytesseract.tesseract_cmd
+        if not (shutil.which(tess_bin) or Path(tess_bin).is_file()):
             raise Url2PdfError(
-                "tesseract binary not found in PATH. "
-                "Please install Tesseract OCR (e.g., 'apt install tesseract-ocr' or via installer)."
+                f"tesseract binary not found at '{tess_bin}'.\n"
+                "Please install Tesseract OCR (e.g., 'apt install tesseract-ocr' or via installer) "
+                "and ensure it is in PATH, or provide the correct path."
             )
 
     if check_only:
