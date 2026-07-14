@@ -67,9 +67,15 @@ class Url2PdfApp:
             root, textvariable=self.recipe_var, state="readonly"
         ).grid(row=2, column=1, sticky="ew", padx=10, pady=5)
         
-        btn_browse_rec = tk.Button(root, command=self.browse_recipe)
-        btn_browse_rec.grid(row=2, column=2, sticky="w", padx=10, pady=5)
+        rec_btn_frame = tk.Frame(root)
+        rec_btn_frame.grid(row=2, column=2, sticky="w", padx=10, pady=5)
+        
+        btn_browse_rec = tk.Button(rec_btn_frame, command=self.browse_recipe)
+        btn_browse_rec.pack(side="left", padx=(0, 5))
         self._register(btn_browse_rec, "gui_browse")
+        
+        btn_build_rec = tk.Button(rec_btn_frame, text="Build...", command=self.build_recipe)
+        btn_build_rec.pack(side="left")
 
         # Options
         lbl_profile = tk.Label(root)
@@ -164,6 +170,89 @@ class Url2PdfApp:
         )
         if path:
             self.recipe_var.set(path)
+
+    def build_recipe(self) -> None:
+        import json
+        from tkinter import simpledialog
+        
+        top = tk.Toplevel(self.root)
+        top.title("Recipe Builder")
+        top.geometry("450x350")
+        top.transient(self.root)
+        top.grab_set()
+        
+        listbox = tk.Listbox(top, font=("Arial", 10))
+        listbox.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        actions: list[dict[str, Any]] = []
+        
+        def update_list() -> None:
+            listbox.delete(0, tk.END)
+            for idx, a in enumerate(actions):
+                if a["action"] == "wait":
+                    listbox.insert(tk.END, f"{idx+1}. Wait {a['ms']}ms")
+                elif a["action"] == "click":
+                    listbox.insert(tk.END, f"{idx+1}. Click '{a['selector']}' (optional)")
+                elif a["action"] == "scroll":
+                    listbox.insert(tk.END, f"{idx+1}. Scroll Page")
+
+        def add_wait() -> None:
+            ms = simpledialog.askinteger(
+                "Wait", 
+                "Milliseconds to wait (e.g., 2000):", 
+                parent=top, 
+                minvalue=0, 
+                maxvalue=60000
+            )
+            if ms is not None:
+                actions.append({"action": "wait", "ms": ms})
+                update_list()
+                
+        def add_click() -> None:
+            sel = simpledialog.askstring(
+                "Click", 
+                "CSS Selector to click (e.g., .cookie-btn):", 
+                parent=top
+            )
+            if sel:
+                actions.append({"action": "click", "selector": sel, "optional": True})
+                update_list()
+                
+        def add_scroll() -> None:
+            actions.append({"action": "scroll"})
+            update_list()
+            
+        def save_recipe() -> None:
+            if not actions:
+                messagebox.showwarning("Empty", "No actions added.", parent=top)
+                return
+            path = filedialog.asksaveasfilename(
+                defaultextension=".json", 
+                filetypes=[("JSON", "*.json")], 
+                parent=top
+            )
+            if path:
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(actions, f, indent=2)
+                    self.recipe_var.set(path)
+                    top.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save recipe: {e}", parent=top)
+                
+        btn_frame = tk.Frame(top)
+        btn_frame.pack(fill="x", padx=10, pady=10)
+        
+        tk.Button(btn_frame, text="+ Wait", command=add_wait, width=8).pack(side="left", padx=2)
+        tk.Button(
+            btn_frame, text="+ Click", command=add_click, width=8
+        ).pack(side="left", padx=2)
+        tk.Button(
+            btn_frame, text="+ Scroll", command=add_scroll, width=8
+        ).pack(side="left", padx=2)
+        tk.Button(
+            btn_frame, text="Save JSON", command=save_recipe, bg="#2196F3", fg="white", width=10
+        ).pack(side="right", padx=2)
 
     def start_conversion(self) -> None:
         url = self.url_var.get().strip()

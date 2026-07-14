@@ -53,7 +53,20 @@ examples:
     )
     parser.add_argument(
         "--recipe",
-        help="Path to a JSON recipe file to execute custom actions before capture",
+        help=(
+            "Path to a JSON recipe file or preset name (e.g., dismiss-cookies, lazy-load) "
+            "to execute custom actions before capture"
+        ),
+    )
+    parser.add_argument(
+        "--help-recipe",
+        action="store_true",
+        help="Show detailed tutorial and preset list for Recipe JSON",
+    )
+    parser.add_argument(
+        "--test-recipe",
+        action="store_true",
+        help="Execute recipe visually and exit without PDF generation",
     )
     parser.add_argument(
         "--ocr",
@@ -128,6 +141,34 @@ def main(argv: list[str] | None = None) -> int:
 
     _ = get_translator(args.lang)
 
+    if args.help_recipe:
+        print("""
+Recipe JSON Guide:
+------------------
+Recipe JSON allows you to automate clicks, waits, and scrolling before capturing the PDF.
+You can use a custom JSON file path, or one of the built-in presets.
+
+Built-in Presets:
+  --recipe dismiss-cookies   : Attempts to close common cookie/GDPR consent banners.
+  --recipe lazy-load         : Scrolls down the page once to trigger lazy-loaded images.
+
+Creating Custom Recipes:
+Write a JSON array of objects, e.g.:
+[
+  { "action": "wait", "ms": 2000 },
+  { "action": "click", "selector": "#agree-btn", "optional": true },
+  { "action": "scroll" }
+]
+
+Actions:
+- wait: wait for 'ms' milliseconds.
+- click: click element matching 'selector'. If 'optional' is true, ignores errors.
+- scroll: scroll to bottom of the page or specific 'selector'.
+
+Run with --test-recipe --recipe <recipe> to see it in action without saving a PDF.
+""")
+        return 0
+
     if not args.url and not args.batch:
         parser.error("either url or --batch must be provided")
 
@@ -167,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
                         ocr=args.ocr,
                         ocr_lang=args.ocr_lang,
                         lang=args.lang,
+                        test_recipe=args.test_recipe,
                     )
                 except Url2PdfError as exc:
                     print(f"Error processing {line}: {exc}", file=sys.stderr)
@@ -190,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
                 ocr=args.ocr,
                 ocr_lang=args.ocr_lang,
                 lang=args.lang,
+                test_recipe=args.test_recipe,
             )
             return 0
     except Url2PdfError as exc:

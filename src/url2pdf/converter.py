@@ -235,12 +235,32 @@ def wait_for_manual_verification(
         raise PageLoadError("Still on a browser verification page. PDF creation was stopped.")
 
 
-def _run_recipe(page: Page, recipe_path: str, log: Any, _: Any) -> None:
-    try:
-        with open(recipe_path, encoding="utf-8") as f:
-            recipe_data = json.load(f)
-    except Exception as e:
-        raise Url2PdfError(f"Failed to parse recipe JSON: {e}") from e
+PRESET_RECIPES = {
+    "dismiss-cookies": [
+        {"action": "wait", "ms": 500},
+        {
+            "action": "click",
+            "selector": (
+                "[class*='cookie'], [id*='cookie'], [class*='consent'], [id*='consent'], "
+                "button:has-text('Accept'), button:has-text('Agree')"
+            ),
+            "optional": True
+        }
+    ],
+    "lazy-load": [
+        {"action": "scroll"}
+    ]
+}
+
+def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, _: Any) -> None:
+    if recipe_path_or_preset in PRESET_RECIPES:
+        recipe_data = PRESET_RECIPES[recipe_path_or_preset]
+    else:
+        try:
+            with open(recipe_path_or_preset, encoding="utf-8") as f:
+                recipe_data = json.load(f)
+        except Exception as e:
+            raise Url2PdfError(f"Failed to parse recipe JSON: {e}") from e
 
     if not isinstance(recipe_data, list):
         raise Url2PdfError("Recipe must be a JSON array of actions.")
@@ -320,6 +340,7 @@ def convert(
     ocr: bool = False,
     ocr_lang: str = "eng",
     lang: str = "auto",
+    test_recipe: bool = False,
 ) -> Path | None:
     """Convert *url* to a searchable PDF and return its :class:`~pathlib.Path`.
 
@@ -355,6 +376,9 @@ def convert(
         Capture profile ("faithful", "evidence", or "reading").
     preview:
         If True, open the generated PDF with the OS default viewer.
+    test_recipe:
+        If True, executes recipe visually (forcing headless=False typically) 
+        and exits without generating PDF.
 
     Returns
     -------
@@ -402,6 +426,9 @@ def convert(
 
     if session_file and not Path(session_file).is_file():
         raise Url2PdfError(f"Session file not found: {session_file}")
+
+    if test_recipe:
+        headless = False
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -451,6 +478,11 @@ def convert(
             if recipe:
                 log(_("recipe_executing"))
                 _run_recipe(page, recipe, log, _)
+
+            if test_recipe:
+                log("Recipe test completed. Exiting without PDF generation.")
+                time.sleep(3.0)
+                return None
 
             log(_("dismissing"))
             try:
