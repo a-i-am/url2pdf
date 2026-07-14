@@ -173,7 +173,16 @@ def get_translator(lang: str = "auto") -> Any:
     if lang == "auto":
         try:
             loc = locale.getlocale()[0]
-            if loc and loc.startswith("ko"):
+            if not loc:
+                import sys
+                if sys.platform == "win32":
+                    import ctypes
+                    langid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+                    # 1042 is Korean
+                    if langid == 1042:
+                        loc = "ko"
+            
+            if loc and (loc.lower().startswith("ko") or loc.lower().startswith("korean")):
                 lang = "ko"
             else:
                 lang = "en"

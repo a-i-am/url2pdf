@@ -82,7 +82,7 @@ class Url2PdfApp:
 
         # Options
         lbl_profile = tk.Label(root)
-        lbl_profile.grid(row=3, column=0, sticky="w", padx=10, pady=5)
+        lbl_profile.grid(row=3, column=0, sticky="nw", padx=10, pady=5)
         self._register(lbl_profile, "gui_profile")
 
         self.profile_var = tk.StringVar(value="faithful")
@@ -90,15 +90,15 @@ class Url2PdfApp:
         profile_frame.grid(row=3, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         
         rb_faith = tk.Radiobutton(profile_frame, variable=self.profile_var, value="faithful")
-        rb_faith.pack(side="left")
+        rb_faith.pack(anchor="w", pady=2)
         self._register(rb_faith, "gui_faithful")
         
         rb_evi = tk.Radiobutton(profile_frame, variable=self.profile_var, value="evidence")
-        rb_evi.pack(side="left")
+        rb_evi.pack(anchor="w", pady=2)
         self._register(rb_evi, "gui_evidence")
         
         rb_read = tk.Radiobutton(profile_frame, variable=self.profile_var, value="reading")
-        rb_read.pack(side="left")
+        rb_read.pack(anchor="w", pady=2)
         self._register(rb_read, "gui_reading")
 
         self.headed_var = tk.BooleanVar(value=False)
