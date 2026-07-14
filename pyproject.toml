@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "url2pdf"
-version = "1.0.0"
+version = "1.2.0"
 description = "Convert any web page to a searchable, text-selectable PDF"
 readme = "README.md"
 license = { text = "MIT" }
@@ -34,6 +34,10 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pymupdf>=1.23",
+]
+ocr = [
+    "pytesseract>=0.3",
+    "Pillow>=10.0",
 ]
 
 [project.scripts]

@@ -7,6 +7,7 @@ import sys
 
 from .converter import convert
 from .exceptions import Url2PdfError
+from .i18n import get_translator
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,7 +24,66 @@ examples:
   url2pdf https://example.com -q          # suppress progress output
 """,
     )
-    parser.add_argument("url", help="URL of the page to convert")
+    parser.add_argument("url", nargs="?", help="URL of the page to convert")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check HTTP connection only, do not generate PDF",
+    )
+    parser.add_argument(
+        "--batch",
+        metavar="FILE",
+        help="Process multiple URLs from a text file",
+    )
+    parser.add_argument(
+        "--session",
+        metavar="FILE",
+        help="Path to Playwright storageState.json for login sessions",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=["faithful", "evidence", "reading"],
+        default="faithful",
+        help="Capture profile (faithful: default, evidence: metadata hash, reading: removes ads)",
+    )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Preview the PDF using the OS default viewer after generation",
+    )
+    parser.add_argument(
+        "--recipe",
+        help=(
+            "Path to a JSON recipe file or preset name (e.g., dismiss-cookies, lazy-load) "
+            "to execute custom actions before capture"
+        ),
+    )
+    parser.add_argument(
+        "--help-recipe",
+        action="store_true",
+        help="Show detailed tutorial and preset list for Recipe JSON",
+    )
+    parser.add_argument(
+        "--test-recipe",
+        action="store_true",
+        help="Execute recipe visually and exit without PDF generation",
+    )
+    parser.add_argument(
+        "--ocr",
+        action="store_true",
+        help="Use Tesseract OCR to generate PDF from full-page screenshot",
+    )
+    parser.add_argument(
+        "--ocr-lang",
+        default="eng",
+        help="Language passed to Tesseract (e.g., 'eng', 'kor+eng') (default: eng)",
+    )
+    parser.add_argument(
+        "--lang",
+        choices=["auto", "ko", "en"],
+        default="auto",
+        help="Language for CLI messages (default: auto)",
+    )
     parser.add_argument(
         "-o", "--output",
         metavar="FILE",
@@ -79,22 +139,104 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    _ = get_translator(args.lang)
+
+    if args.help_recipe:
+        print("""
+Recipe JSON Guide:
+------------------
+Recipe JSON allows you to automate clicks, waits, and scrolling before capturing the PDF.
+You can use a custom JSON file path, or one of the built-in presets.
+
+Built-in Presets:
+  --recipe dismiss-cookies   : Attempts to close common cookie/GDPR consent banners.
+  --recipe lazy-load         : Scrolls down the page once to trigger lazy-loaded images.
+
+Creating Custom Recipes:
+Write a JSON array of objects, e.g.:
+[
+  { "action": "wait", "ms": 2000 },
+  { "action": "click", "selector": "#agree-btn", "optional": true },
+  { "action": "scroll" }
+]
+
+Actions:
+- wait: wait for 'ms' milliseconds.
+- click: click element matching 'selector'. If 'optional' is true, ignores errors.
+- scroll: scroll to bottom of the page or specific 'selector'.
+
+Run with --test-recipe --recipe <recipe> to see it in action without saving a PDF.
+""")
+        return 0
+
+    if args.url and args.batch:
+        parser.error("arguments url and --batch are mutually exclusive")
+    if not args.url and not args.batch:
+        parser.error("either url or --batch must be provided")
+
     if not 0.1 <= args.scale <= 2.0:
         parser.error("--scale must be between 0.1 and 2.0")
 
     try:
-        convert(
-            url=args.url,
-            output=args.output,
-            timeout=args.timeout,
-            scroll_rounds=args.scroll_rounds,
-            page_format=args.format,
-            scale=args.scale,
-            verbose=not args.quiet,
-            headless=not args.headed,
-            manual_verification=args.manual_verification,
-        )
-        return 0
+        if args.batch:
+            try:
+                with open(args.batch, encoding="utf-8") as f:
+                    lines = [
+                        line.strip() for line in f 
+                        if line.strip() and not line.strip().startswith("#")
+                    ]
+            except OSError as exc:
+                parser.error(f"Failed to read batch file: {exc}")
+            
+            for line in lines:
+                try:
+                    if not args.quiet:
+                        print(f"\nProcessing batch item: {line}")
+                    convert(
+                        url=line,
+                        output=None,
+                        timeout=args.timeout,
+                        scroll_rounds=args.scroll_rounds,
+                        page_format=args.format,
+                        scale=args.scale,
+                        verbose=not args.quiet,
+                        headless=not args.headed,
+                        manual_verification=args.manual_verification,
+                        check_only=args.check,
+                        session_file=args.session,
+                        profile=args.profile,
+                        preview=args.preview,
+                        recipe=args.recipe,
+                        ocr=args.ocr,
+                        ocr_lang=args.ocr_lang,
+                        lang=args.lang,
+                        test_recipe=args.test_recipe,
+                    )
+                except Url2PdfError as exc:
+                    print(f"Error processing {line}: {exc}", file=sys.stderr)
+            return 0
+        else:
+            convert(
+                url=args.url,
+                output=args.output,
+                timeout=args.timeout,
+                scroll_rounds=args.scroll_rounds,
+                page_format=args.format,
+                scale=args.scale,
+                verbose=not args.quiet,
+                headless=not args.headed,
+                manual_verification=args.manual_verification,
+                check_only=args.check,
+                session_file=args.session,
+                profile=args.profile,
+                preview=args.preview,
+                recipe=args.recipe,
+                ocr=args.ocr,
+                ocr_lang=args.ocr_lang,
+                lang=args.lang,
+                test_recipe=args.test_recipe,
+            )
+            return 0
     except Url2PdfError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

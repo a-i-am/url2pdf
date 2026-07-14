@@ -59,8 +59,10 @@ class TestCLIParser:
         self.parser = build_parser()
 
     def test_url_required(self):
-        with pytest.raises(SystemExit):
-            self.parser.parse_args([])
+        with pytest.raises(SystemExit) as exc:
+            from url2pdf.cli import main
+            main([])
+        assert exc.value.code != 0
 
     def test_defaults(self):
         args = self.parser.parse_args(["https://example.com"])
