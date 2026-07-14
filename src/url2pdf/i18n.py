@@ -61,6 +61,28 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_recipe_scroll": "Scroll",
         "gui_recipe_wait": "Wait",
         "gui_recipe_click": "Click",
+        "gui_recipe_help_title": "Recipe JSON Guide",
+        "gui_recipe_help_msg": (
+            "Recipe JSON allows you to automate clicks, waits, and scrolling "
+            "before capturing the PDF.\n"
+            "You can use a custom JSON file path, or one of the built-in presets.\n\n"
+            "Built-in Presets:\n"
+            "  dismiss-cookies : Attempts to close common cookie/GDPR consent banners.\n"
+            "  lazy-load       : Scrolls down the page once to trigger lazy-loaded images.\n\n"
+            "Creating Custom Recipes:\n"
+            "Write a JSON array of objects, e.g.:\n"
+            "[\n"
+            '  { "action": "wait", "ms": 2000 },\n'
+            '  { "action": "click", "selector": "#agree-btn", "optional": true },\n'
+            '  { "action": "scroll" }\n'
+            "]\n\n"
+            "Actions:\n"
+            "- wait: wait for 'ms' milliseconds.\n"
+            "- click: click element matching 'selector'. If 'optional' is true, ignores errors.\n"
+            "- scroll: scroll to bottom of the page or specific 'selector'.\n\n"
+            "You can enter the preset name (e.g., dismiss-cookies) directly "
+            "into the 'Recipe JSON' input field!"
+        ),
     },
     "ko": {
         "loading": "페이지 로드 중...",
@@ -123,6 +145,27 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "gui_recipe_scroll": "스크롤(Scroll)",
         "gui_recipe_wait": "대기(Wait)",
         "gui_recipe_click": "클릭(Click)",
+        "gui_recipe_help_title": "레시피 JSON 가이드",
+        "gui_recipe_help_msg": (
+            "레시피 JSON을 사용하면 PDF 캡처 전에 클릭, 대기, 스크롤 동작을 자동화할 수 있습니다.\n"
+            "직접 만든 JSON 파일을 선택하거나, 내장 프리셋을 사용할 수 있습니다.\n\n"
+            "내장 프리셋:\n"
+            "  dismiss-cookies : 쿠키/GDPR 동의 배너를 자동으로 닫으려 시도합니다.\n"
+            "  lazy-load       : 지연 로딩되는 이미지를 불러오기 위해 페이지를 "
+            "한 번 스크롤합니다.\n\n"
+            "커스텀 레시피 생성:\n"
+            "다음과 같이 객체의 JSON 배열을 작성합니다:\n"
+            "[\n"
+            '  { "action": "wait", "ms": 2000 },\n'
+            '  { "action": "click", "selector": "#agree-btn", "optional": true },\n'
+            '  { "action": "scroll" }\n'
+            "]\n\n"
+            "지원되는 액션:\n"
+            "- wait: 'ms' 밀리초 동안 대기합니다.\n"
+            "- click: 'selector' 요소 클릭. 'optional'이 true이면 찾지 못해도 무시합니다.\n"
+            "- scroll: 페이지 맨 아래 또는 특정 'selector'로 스크롤합니다.\n\n"
+            "'Recipe JSON' 입력란에 프리셋 이름(예: dismiss-cookies)을 직접 입력하셔도 됩니다!"
+        ),
     },
 }
 

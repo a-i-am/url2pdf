@@ -75,7 +75,10 @@ class Url2PdfApp:
         self._register(btn_browse_rec, "gui_browse")
         
         btn_build_rec = tk.Button(rec_btn_frame, text="Build...", command=self.build_recipe)
-        btn_build_rec.pack(side="left")
+        btn_build_rec.pack(side="left", padx=(0, 5))
+
+        btn_help_rec = tk.Button(rec_btn_frame, text="?", command=self.show_recipe_help)
+        btn_help_rec.pack(side="left")
 
         # Options
         lbl_profile = tk.Label(root)
@@ -170,6 +173,13 @@ class Url2PdfApp:
         )
         if path:
             self.recipe_var.set(path)
+
+    def show_recipe_help(self) -> None:
+        messagebox.showinfo(
+            self._("gui_recipe_help_title"),
+            self._("gui_recipe_help_msg"),
+            parent=self.root
+        )
 
     def build_recipe(self) -> None:
         import json
