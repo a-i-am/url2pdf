@@ -27,8 +27,18 @@ Most HTML-to-PDF tools either produce image-only output (no text selection/searc
 
 ## Installation
 
+To install the core tool:
 ```bash
 pip install url2pdf
+```
+
+To use the `--ocr` feature for image-heavy pages, install the optional `ocr` dependency:
+```bash
+pip install "url2pdf[ocr]"
+```
+*Note: You must also install the `tesseract` binary on your system (e.g., `apt install tesseract-ocr` or via the Windows installer) for the `--ocr` feature to work.*
+
+```bash
 playwright install chromium
 ```
 
@@ -41,18 +51,32 @@ playwright install chromium
 ### Command line
 
 ```bash
-# Basic — filename is auto-generated from the page title
+# 기본 사용 (faithful 프로필)
 url2pdf https://example.com
 
-# Custom output path
-url2pdf https://example.com -o report.pdf
+# 캡처 프로필 지정 및 PDF 미리보기
+url2pdf https://example.com --profile reading --preview
 
-# Letter paper, 85% scale, 90-second timeout
-url2pdf https://example.com --format Letter --scale 0.85 --timeout 90
+# 로그인 세션 유지 (미리 저장된 storageState.json 사용)
+url2pdf https://github.com --session session.json
 
-# Silent mode (no progress output)
-url2pdf https://example.com -q
+# 커스텀 동작 (레시피) 실행
+url2pdf https://example.com --recipe actions.json
+
+# OCR을 사용해 이미지 중심 페이지 캡처 (pytesseract 및 tesseract 바이너리 필요)
+# 긴 페이지의 경우 스크린샷 이미지 크기나 타임아웃 제한으로 인해 실패할 수 있습니다.
+url2pdf https://example.com --ocr --ocr-lang kor+eng
+
+# CLI 출력 언어 지정 (기본값: auto)
+url2pdf https://example.com --lang ko
 ```
+
+* `--profile`: 캡처 프로필을 지정합니다.
+  * `faithful` (기본값): 화면에 보이는 그대로 캡처합니다.
+  * `evidence`: 캡처 후 원본 URL과 SHA-256 해시가 포함된 메타데이터 JSON 파일을 함께 생성합니다.
+  * `reading`: 광고, 내비게이션 바 등 불필요한 요소를 제거하고 본문 위주로 캡처합니다. (※ 휴리스틱 기반으로 작동하므로 사이트 구조에 따라 완벽하게 제거되지 않거나 본문 일부가 누락될 수 있는 한계가 있습니다.)
+
+* `--preview`: 변환 완료 후 생성된 PDF를 OS 기본 뷰어로 즉시 열어 확인합니다.
 
 ### Python API
 

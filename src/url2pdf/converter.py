@@ -4,15 +4,26 @@ Core PDF conversion logic using Playwright.
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from playwright.sync_api import Page, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from .exceptions import PageLoadError, PDFGenerationError
+from .exceptions import PageLoadError, PDFGenerationError, Url2PdfError
+from .i18n import get_translator
 
 CHALLENGE_TITLE_KEYWORDS = (
     "just a moment",
@@ -222,6 +233,67 @@ def wait_for_manual_verification(
         raise PageLoadError("Still on a browser verification page. PDF creation was stopped.")
 
 
+def _run_recipe(page: Page, recipe_path: str, log: Any, _: Any) -> None:
+    try:
+        with open(recipe_path, encoding="utf-8") as f:
+            recipe_data = json.load(f)
+    except Exception as e:
+        raise Url2PdfError(f"Failed to parse recipe JSON: {e}") from e
+
+    if not isinstance(recipe_data, list):
+        raise Url2PdfError("Recipe must be a JSON array of actions.")
+        
+    for idx, step in enumerate(recipe_data):
+        action = step.get("action")
+        if action not in ("click", "wait", "scroll"):
+            raise Url2PdfError(f"Invalid recipe action at step {idx}: {action}")
+            
+        if action == "wait":
+            ms = step.get("ms")
+            if not isinstance(ms, int) or not (0 <= ms <= 60000):
+                raise Url2PdfError(
+                    f"Recipe step {idx} 'wait' requires integer 'ms' between 0 and 60000."
+                )
+            log(_("recipe_waiting", ms=ms))
+            page.wait_for_timeout(ms)
+            
+        elif action == "click":
+            selector = step.get("selector")
+            optional = step.get("optional", False)
+            if not selector:
+                if optional:
+                    continue
+                raise Url2PdfError(f"Recipe step {idx} 'click' requires 'selector'.")
+            log(_("recipe_clicking", selector=selector))
+            try:
+                page.locator(selector).click(timeout=5000)
+            except Exception as e:
+                if not optional:
+                    raise Url2PdfError(
+                        f"Recipe step {idx} failed to click '{selector}': {e}"
+                    ) from e
+                    
+        elif action == "scroll":
+            selector = step.get("selector")
+            if selector:
+                log(_("recipe_scrolling_element", selector=selector))
+                try:
+                    page.evaluate(
+                        "(sel) => { "
+                        "const el = document.querySelector(sel); "
+                        "if(el) el.scrollTop = el.scrollHeight; "
+                        "}",
+                        selector
+                    )
+                except Exception as e:
+                    raise Url2PdfError(
+                        f"Recipe step {idx} failed to scroll '{selector}': {e}"
+                    ) from e
+            else:
+                log(_("recipe_scrolling_page"))
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+
+
 def convert(
     url: str,
     output: str | None = None,
@@ -236,7 +308,15 @@ def convert(
     manual_verification: bool = False,
     challenge_title_keywords: tuple[str, ...] | None = None,
     screenshot_path: str | None = None,
-) -> Path:
+    check_only: bool = False,
+    session_file: str | None = None,
+    profile: str = "faithful",
+    preview: bool = False,
+    recipe: str | None = None,
+    ocr: bool = False,
+    ocr_lang: str = "eng",
+    lang: str = "auto",
+) -> Path | None:
     """Convert *url* to a searchable PDF and return its :class:`~pathlib.Path`.
 
     Parameters
@@ -263,11 +343,19 @@ def convert(
         Pause for browser verification when a challenge page is detected.
     challenge_title_keywords:
         Optional page title keywords used to detect browser verification pages.
+    check_only:
+        If True, only check HTTP status and return without generating PDF.
+    session_file:
+        Path to playwright storageState json for login sessions.
+    profile:
+        Capture profile ("faithful", "evidence", or "reading").
+    preview:
+        If True, open the generated PDF with the OS default viewer.
 
     Returns
     -------
-    Path
-        Absolute path of the generated PDF.
+    Path | None
+        Absolute path of the generated PDF, or None if check_only is True.
 
     Raises
     ------
@@ -277,9 +365,39 @@ def convert(
         When Playwright fails to write the PDF.
     """
 
+    _ = get_translator(lang)
+
     def log(msg: str) -> None:
         if verbose:
             print(msg)
+
+    if ocr:
+        try:
+            import pytesseract
+        except ImportError as exc:
+            raise Url2PdfError(
+                "pytesseract is required for --ocr. Install it with: pip install 'url2pdf[ocr]'"
+            ) from exc
+        
+        if not shutil.which("tesseract"):
+            raise Url2PdfError(
+                "tesseract binary not found in PATH. "
+                "Please install Tesseract OCR (e.g., 'apt install tesseract-ocr' or via installer)."
+            )
+
+    if check_only:
+        log(f"[1/1] Checking HTTP connection: {url}")
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                if response.status >= 400:
+                    raise PageLoadError(f"HTTP Error {response.status}")
+        except urllib.error.URLError as exc:
+            raise PageLoadError(f"Connection failed: {exc}")
+        return None
+
+    if session_file and not Path(session_file).is_file():
+        raise Url2PdfError(f"Session file not found: {session_file}")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -299,13 +417,14 @@ def convert(
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
                               "image/avif,image/webp,*/*;q=0.8",
                 },
+                storage_state=session_file if session_file else None,
             )
             context.add_init_script(
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
             page = context.new_page()
 
-            log(f"[1/6] Loading: {url}")
+            log(_("loading"))
             try:
                 page.goto(url, wait_until="load", timeout=timeout * 1_000)
             except PlaywrightTimeoutError as exc:
@@ -325,7 +444,11 @@ def convert(
                     verbose=verbose,
                 )
 
-            log("[2/6] Dismissing overlays / popups...")
+            if recipe:
+                log(_("recipe_executing"))
+                _run_recipe(page, recipe, log, _)
+
+            log(_("dismissing"))
             try:
                 dismissed = page.evaluate(_JS_DISMISS_OVERLAYS)
                 if verbose and dismissed:
@@ -339,7 +462,7 @@ def convert(
                 pass
             time.sleep(0.5)
 
-            log("[3/6] Scrolling to load lazy content...")
+            log(_("scrolling"))
             page.evaluate(_JS_FIND_SCROLLER)
             last_height = -1
             for _ in range(scroll_rounds):
@@ -359,16 +482,43 @@ def convert(
                     break
                 last_height = height
 
-            log("[4/6] Waiting for images...")
+            log(_("waiting_images"))
             try:
                 page.evaluate(_JS_WAIT_IMAGES)
             except Exception:
                 pass
             time.sleep(0.5)
+            
+            dom_text_len = 0
+            try:
+                dom_text_len = len(page.evaluate("document.body.innerText") or "")
+            except Exception:
+                pass
 
             title = page.title() or "page"
+            dest = Path(output) if output else Path(make_filename(title))
 
-            log("[5/6] Injecting print CSS and preparing DOM...")
+            if ocr:
+                log(_("generating_pdf", dest=dest))
+                import tempfile
+
+                import pytesseract
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    tmp_path = tmp.name
+                try:
+                    page.screenshot(path=tmp_path, full_page=True)
+                    pdf_bytes = pytesseract.image_to_pdf_or_hocr(
+                        tmp_path, extension="pdf", lang=ocr_lang
+                    )
+                    dest.resolve().write_bytes(pdf_bytes)
+                except Exception as exc:
+                    raise PDFGenerationError(f"OCR PDF generation failed: {exc}") from exc
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
+                log(_("done", dest=dest.resolve()))
+                return dest.resolve()
+
+            log(_("injecting"))
             try:
                 page.add_style_tag(content=_PRINT_CSS)
             except Exception:
@@ -378,7 +528,22 @@ def convert(
 
             dest = Path(output) if output else Path(make_filename(title))
 
-            log(f"[6/6] Generating PDF: {dest}")
+            if profile == "reading":
+                log(_("applying_reading"))
+                try:
+                    page.evaluate('''
+                        document.querySelectorAll(
+                            'header, footer, nav, aside, .ad, .advertisement, iframe, .social-share'
+                        ).forEach(el => el.remove());
+                        document.body.style.maxWidth = '800px';
+                        document.body.style.margin = '0 auto';
+                        document.body.style.fontSize = '18px';
+                        document.body.style.lineHeight = '1.6';
+                    ''')
+                except Exception as exc:
+                    log(f"  [warn] Reading profile heuristic failed: {exc}")
+
+            log(_("generating_pdf", dest=dest))
             page.emulate_media(media="screen")
             try:
                 page.pdf(
@@ -426,8 +591,63 @@ def convert(
                 except Exception:
                     pass
 
-            log(f"Done: {dest.resolve()}")
+            if profile == "evidence":
+                log("Generating evidence metadata...")
+                dest_path = dest.resolve()
+                file_hash = hashlib.sha256(dest_path.read_bytes()).hexdigest()
+                metadata = {
+                    "url": url,
+                    "timestamp": datetime.now().isoformat(),
+                    "sha256": file_hash,
+                    "profile": profile,
+                }
+                meta_path = dest_path.with_name(dest_path.stem + "_metadata.json")
+                meta_path.write_text(
+                    json.dumps(metadata, indent=2, ensure_ascii=False),
+                    encoding="utf-8"
+                )
+                log(f"  [info] Wrote metadata: {meta_path.name}")
+
+            if preview:
+                log(_("launching_preview"))
+                try:
+                    if sys.platform == "win32":
+                        os.startfile(dest.resolve())
+                    elif sys.platform == "darwin":
+                        subprocess.call(["open", str(dest.resolve())])
+                    else:
+                        subprocess.call(["xdg-open", str(dest.resolve())])
+                except Exception as exc:
+                    log(f"  [warn] Failed to open preview: {exc}")
+
+            if dom_text_len > 0:
+                try:
+                    import fitz
+                    pdf_doc = fitz.open(str(dest.resolve()))
+                    pdf_text = ""
+                    for pdf_page in pdf_doc:
+                        pdf_text += pdf_page.get_text()
+                    pdf_text_len = len(pdf_text.strip())
+                    preservation_rate = (pdf_text_len / dom_text_len) * 100
+                    log(
+                        f"  [info] Reproducibility Index (Text Preservation): "
+                        f"{preservation_rate:.1f}% "
+                        f"({pdf_text_len}/{dom_text_len} chars)")
+                except ImportError:
+                    log(
+                        "  [warn] 'pymupdf' (fitz) is not installed. "
+                        "Reproducibility Index cannot be calculated."
+                    )
+                except Exception as exc:
+                    log(f"  [warn] Failed to extract text from PDF for metric: {exc}")
+
+            log(_("done", dest=dest.resolve()))
             return dest.resolve()
 
         finally:
             browser.close()
+
+async def convert_url_async(*args: Any, **kwargs: Any) -> Path | None:
+    """Asynchronous wrapper for convert()."""
+    return await asyncio.to_thread(convert, *args, **kwargs)
+
