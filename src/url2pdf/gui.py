@@ -17,7 +17,7 @@ class Url2PdfApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("url2pdf")
-        self.root.geometry("550x450")
+        self.root.geometry("550x530")
         self.root.minsize(550, 450)
         self.root.columnconfigure(1, weight=1)
         self.root.columnconfigure(2, weight=0)
@@ -64,7 +64,7 @@ class Url2PdfApp:
 
         self.recipe_var = tk.StringVar()
         tk.Entry(
-            root, textvariable=self.recipe_var, state="readonly"
+            root, textvariable=self.recipe_var
         ).grid(row=2, column=1, sticky="ew", padx=10, pady=5)
         
         rec_btn_frame = tk.Frame(root)
@@ -141,12 +141,37 @@ class Url2PdfApp:
             self._register(self.chk_ocr, "gui_enable_ocr_disabled")
             self.root.after(500, self.prompt_install_ocr)
 
+        lbl_ocr_lang = tk.Label(root)
+        lbl_ocr_lang.grid(row=6, column=0, sticky="w", padx=10, pady=5)
+        self._register(lbl_ocr_lang, "gui_ocr_lang")
+
+        self.ocr_lang_var = tk.StringVar(value="eng")
+        tk.Entry(root, textvariable=self.ocr_lang_var).grid(
+            row=6, column=1, sticky="ew", padx=10, pady=5
+        )
+
+        lbl_layout = tk.Label(root)
+        lbl_layout.grid(row=7, column=0, sticky="w", padx=10, pady=5)
+        self._register(lbl_layout, "gui_pdf_layout")
+
+        self.pdf_layout_var = tk.StringVar(value="pages")
+        layout_frame = tk.Frame(root)
+        layout_frame.grid(row=7, column=1, columnspan=2, sticky="w", padx=10, pady=5)
+
+        rb_pages = tk.Radiobutton(layout_frame, variable=self.pdf_layout_var, value="pages")
+        rb_pages.pack(side="left")
+        self._register(rb_pages, "gui_pdf_layout_pages")
+
+        rb_single = tk.Radiobutton(layout_frame, variable=self.pdf_layout_var, value="single")
+        rb_single.pack(side="left")
+        self._register(rb_single, "gui_pdf_layout_single")
+
         lbl_lang = tk.Label(root)
-        lbl_lang.grid(row=6, column=0, sticky="w", padx=10, pady=5)
+        lbl_lang.grid(row=8, column=0, sticky="w", padx=10, pady=5)
         self._register(lbl_lang, "gui_log_lang")
 
         lang_frame = tk.Frame(root)
-        lang_frame.grid(row=6, column=1, columnspan=2, sticky="w", padx=10, pady=5)
+        lang_frame.grid(row=8, column=1, columnspan=2, sticky="w", padx=10, pady=5)
         
         rb_lang_auto = tk.Radiobutton(lang_frame, variable=self.lang_var, value="auto")
         rb_lang_auto.pack(side="left")
@@ -165,13 +190,13 @@ class Url2PdfApp:
             root, command=self.start_conversion, 
             bg="#4CAF50", fg="white", font=("Arial", 10, "bold")
         )
-        self.convert_btn.grid(row=7, column=1, pady=20)
+        self.convert_btn.grid(row=9, column=1, pady=20)
         self._register(self.convert_btn, "gui_convert_btn")
 
         self.status_var = tk.StringVar(value=self._("gui_status_ready"))
         tk.Label(
             root, textvariable=self.status_var, fg="gray"
-        ).grid(row=8, column=0, columnspan=3, padx=10, pady=5)
+        ).grid(row=10, column=0, columnspan=3, padx=10, pady=5)
 
     def _register(self, widget: Any, key: str) -> None:
         self._registry.append((widget, key))
@@ -401,7 +426,7 @@ class Url2PdfApp:
                     self._("gui_err_ocr_req_title"), self._("gui_err_ocr_req_msg")
                 )
                 return
-            if not shutil.which("tesseract"):
+            if not (self.tess_cmd_var.get().strip() or shutil.which("tesseract")):
                 messagebox.showerror(
                     self._("gui_err_ocr_bin_title"), self._("gui_err_ocr_bin_msg")
                 )
@@ -419,6 +444,8 @@ class Url2PdfApp:
             self.recipe_var.get() or None,
             self.ocr_var.get(),
             self.tess_cmd_var.get().strip() or None,
+            self.ocr_lang_var.get().strip() or "eng",
+            self.pdf_layout_var.get(),
             self.lang_var.get()
         )
         threading.Thread(target=self._run_convert, args=args, daemon=True).start()
@@ -433,6 +460,8 @@ class Url2PdfApp:
         recipe: str | None,
         ocr: bool,
         tess_cmd: str | None,
+        ocr_lang: str,
+        pdf_layout: str,
         lang: str
     ) -> None:
         try:
@@ -445,7 +474,9 @@ class Url2PdfApp:
                 preview=preview,
                 recipe=recipe,
                 ocr=ocr,
+                ocr_lang=ocr_lang,
                 tesseract_cmd=tess_cmd,
+                pdf_layout=pdf_layout,
                 lang=lang,
             )
             

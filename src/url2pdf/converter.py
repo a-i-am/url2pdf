@@ -32,17 +32,23 @@ CHALLENGE_TITLE_KEYWORDS = (
     "attention required",
 )
 
+PDF_LAYOUTS = ("pages", "single")
+
 _PRINT_CSS = """
 * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
     box-sizing: border-box;
+    animation: none !important;
+    transition: none !important;
 }
 html, body {
     height: auto !important;
     overflow: visible !important;
     background: #fff !important;
+    margin-left: 0 !important;
+    transform: none !important;
 }
 body {
     font-family:
@@ -53,20 +59,25 @@ body {
         -apple-system, BlinkMacSystemFont, 'Segoe UI',
         'Helvetica Neue', Arial, sans-serif !important;
 }
-img, svg, figure, table, pre, code, blockquote,
-section, article, .card, [class*="card"], [class*="block"] {
+img, svg, figure, table, pre, code, blockquote {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     max-width: 100% !important;
-    height: auto !important;
+}
+main, div, section, article, .card, [class*="card"], [class*="block"] {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    min-height: 0 !important;
 }
 h1, h2, h3, h4, h5, h6 {
     page-break-after: avoid !important;
     break-after: avoid !important;
 }
-p, li {
+p, li, dt, dd {
     orphans: 3 !important;
     widows: 3 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
 }
 video, audio, iframe[src*="youtube"], iframe[src*="ads"],
 canvas:not([class*="chart"]):not([class*="graph"]) {
@@ -80,6 +91,9 @@ _JS_DISMISS_OVERLAYS = """
     const VIEW_AREA = window.innerWidth * window.innerHeight;
 
     const selectors = [
+        'iframe[src*="ads"]',
+        'img[src*="ads.jobkorea"]',
+        'img[src*="/ads/"]',
         '[id*="cookie"]', '[class*="cookie"]',
         '[id*="gdpr"]',  '[class*="gdpr"]',
         '[id*="consent"]', '[class*="consent"]',
@@ -159,14 +173,30 @@ _JS_PREPARE_FOR_PRINT = """
     for (const el of document.querySelectorAll('*')) {
         try {
             const s = getComputedStyle(el);
+            const className = String(el.className || '').toLowerCase();
+            const keepOverflow = (
+                className.includes('swiper') ||
+                className.includes('carousel') ||
+                className.includes('slider') ||
+                className.includes('slick')
+            );
             if (s.position === 'fixed' || s.position === 'sticky') {
                 el.style.position = 'static';
+                el.style.left = 'auto';
+                el.style.right = 'auto';
+                el.style.top = 'auto';
+                el.style.bottom = 'auto';
+                el.style.transform = 'none';
             }
             if (
-                ['hidden', 'auto', 'scroll'].includes(s.overflow) ||
-                ['auto', 'scroll'].includes(s.overflowY)
+                !keepOverflow && (
+                    ['hidden', 'auto', 'scroll'].includes(s.overflow) ||
+                    ['auto', 'scroll'].includes(s.overflowY)
+                )
             ) {
                 if (el.scrollHeight > 200) {
+                    el.scrollTop = 0;
+                    el.scrollLeft = 0;
                     el.style.overflow = 'visible';
                     el.style.maxHeight = 'none';
                     el.style.height = 'auto';
@@ -176,6 +206,98 @@ _JS_PREPARE_FOR_PRINT = """
     }
 
     window.scrollTo(0, 0);
+    if (document.scrollingElement) {
+        document.scrollingElement.scrollTop = 0;
+        document.scrollingElement.scrollLeft = 0;
+    }
+    return true;
+}
+"""
+
+_JS_LINEARIZE_RECRUIT_PAGE = """
+() => {
+    if (!/gamejob\\.co\\.kr$/i.test(location.hostname)) return false;
+    document.body.style.paddingLeft = '8mm';
+    document.body.style.paddingRight = '8mm';
+    const selectors = [
+        '.view__content',
+        '.section-view-detail',
+        '.view-detail-head',
+        '.view-detail-content',
+        '.content-left',
+        '.content-right',
+        '.content__recruit-data',
+        '.content__summary',
+        '.recruit-view-container',
+        '.section-view-top',
+        '.section-inner',
+        '.job-sub-section__body',
+        '.render-section',
+        '.job-howtoapply-wrap'
+    ];
+    for (const sel of selectors) {
+        for (const el of document.querySelectorAll(sel)) {
+            el.style.cssText += [
+                'display:block!important',
+                'float:none!important',
+                'position:static!important',
+                'width:100%!important',
+                'max-width:100%!important',
+                'height:auto!important',
+                'min-height:0!important',
+                'margin-left:0!important',
+                'margin-right:0!important',
+                'transform:none!important'
+            ].join(';');
+        }
+    }
+    for (const el of document.querySelectorAll('.content-right')) {
+        el.style.marginTop = '16px';
+        el.style.pageBreakInside = 'avoid';
+        el.style.breakInside = 'avoid';
+    }
+    const contentSelectors = [
+        '.section-view-detail *',
+        '.view__content *',
+        '.content-left *',
+        '.content-right *'
+    ].join(', ');
+    for (const el of document.querySelectorAll(contentSelectors)) {
+        el.style.position = 'static';
+        el.style.inset = 'auto';
+        el.style.transform = 'none';
+        el.style.maxWidth = '100%';
+        el.style.float = 'none';
+    }
+    for (const el of document.querySelectorAll('.swiper, .swiper-wrapper')) {
+        el.style.transform = 'none';
+        el.style.overflow = 'hidden';
+        el.style.width = '100%';
+    }
+    for (const el of document.querySelectorAll('.swiper-slide')) {
+        el.style.position = 'static';
+        el.style.transform = 'none';
+        el.style.width = '48%';
+        el.style.display = 'inline-block';
+        el.style.verticalAlign = 'top';
+        el.style.marginRight = '2%';
+    }
+    const hiddenSlides =
+        '.swiper-slide:not(.swiper-slide-active):not(.swiper-slide-next)';
+    for (const el of document.querySelectorAll(hiddenSlides)) {
+        el.style.display = 'none';
+    }
+    for (const img of document.querySelectorAll('.swiper-slide img')) {
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.position = 'static';
+        img.style.transform = 'none';
+    }
+    const swiperControls =
+        '.swiper-button-prev, .swiper-button-next, .swiper-notification';
+    for (const el of document.querySelectorAll(swiperControls)) {
+        el.style.display = 'none';
+    }
     return true;
 }
 """
@@ -318,6 +440,120 @@ def _run_recipe(page: Page, recipe_path_or_preset: str, log: Any, translate: Any
                 page.evaluate("window.scrollTo(0, document.body ? document.body.scrollHeight : 0)")
 
 
+def _normalize_ocr_text(text: str) -> str:
+    return re.sub(r"([가-힣ㄱ-ㅎㅏ-ㅣ])\s+(?=[가-힣ㄱ-ㅎㅏ-ㅣ])", r"\1", text).strip()
+
+
+def _is_korean_text(text: str) -> bool:
+    return bool(re.search(r"[가-힣ㄱ-ㅎㅏ-ㅣ]", text))
+
+
+def _ocr_text_runs(data: dict[str, Any], indexes: list[int]) -> list[list[int]]:
+    runs: list[list[int]] = []
+    for idx in sorted(indexes, key=lambda i: data["left"][i]):
+        text = data["text"][idx].strip()
+        if not runs:
+            runs.append([idx])
+            continue
+        prev = runs[-1][-1]
+        gap = data["left"][idx] - (data["left"][prev] + data["width"][prev])
+        height = max(data["height"][idx], data["height"][prev], 1)
+        if _is_korean_text(data["text"][prev]) and _is_korean_text(text) and gap <= height * 0.8:
+            runs[-1].append(idx)
+        else:
+            runs.append([idx])
+    return runs
+
+
+def _write_ocr_pdf(page: Page, dest: Path, ocr_lang: str, pdf_layout: str) -> None:
+    import tempfile
+
+    import fitz
+    import pytesseract
+    from PIL import Image
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        shot_path = Path(tmp.name)
+    try:
+        page.screenshot(path=str(shot_path), full_page=True)
+        img = Image.open(shot_path)
+        page_h = max(1, int(img.width * 297 / 210))
+        out = fitz.open()
+        fontfile: str | None = r"C:\Windows\Fonts\malgun.ttf"
+        if fontfile is not None and not Path(fontfile).is_file():
+            fontfile = None
+        for y in range(0, img.height, page_h):
+            crop = img.crop((0, y, img.width, min(y + page_h, img.height))).convert("RGB")
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_crop:
+                crop_path = Path(tmp_crop.name)
+            try:
+                crop.save(crop_path)
+                pdf_page = out.new_page(width=crop.width, height=crop.height)
+                pdf_page.insert_image(pdf_page.rect, filename=str(crop_path))
+                data = pytesseract.image_to_data(
+                    str(crop_path),
+                    lang=ocr_lang,
+                    output_type=pytesseract.Output.DICT,
+                )
+                lines: dict[tuple[int, int, int], list[int]] = {}
+                for idx, word in enumerate(data["text"]):
+                    if word.strip():
+                        key = (data["block_num"][idx], data["par_num"][idx], data["line_num"][idx])
+                        lines.setdefault(key, []).append(idx)
+                for indexes in lines.values():
+                    for run in _ocr_text_runs(data, indexes):
+                        words = [data["text"][i] for i in run]
+                        text = _normalize_ocr_text(" ".join(words))
+                        if not text:
+                            continue
+                        x0 = min(data["left"][i] for i in run)
+                        y0 = min(data["top"][i] for i in run)
+                        y1 = max(data["top"][i] + data["height"][i] for i in run)
+                        fontsize = max(6, (y1 - y0) * 0.8)
+                        pdf_page.insert_text(
+                            fitz.Point(x0, y0 + fontsize),
+                            text,
+                            fontfile=fontfile,
+                            fontname="malgun" if fontfile else "helv",
+                            fontsize=fontsize,
+                            render_mode=3,
+                            overlay=True,
+                        )
+            finally:
+                crop_path.unlink(missing_ok=True)
+        out.save(dest.resolve(), garbage=4, deflate=True)
+        out.close()
+        if pdf_layout == "single":
+            _stack_pdf_pages(dest)
+    finally:
+        shot_path.unlink(missing_ok=True)
+
+
+def _stack_pdf_pages(dest: Path) -> None:
+    try:
+        import fitz
+    except ImportError as exc:
+        raise PDFGenerationError("--pdf-layout single requires pymupdf") from exc
+
+    src = fitz.open(dest)
+    if src.page_count <= 1:
+        return
+    width = max(page.rect.width for page in src)
+    height = sum(page.rect.height for page in src)
+    out = fitz.open()
+    page = out.new_page(width=width, height=height)
+    y = 0
+    for src_page in src:
+        rect = fitz.Rect(0, y, src_page.rect.width, y + src_page.rect.height)
+        page.show_pdf_page(rect, src, src_page.number)
+        y += src_page.rect.height
+    tmp = dest.with_suffix(".single.tmp.pdf")
+    out.save(tmp)
+    out.close()
+    src.close()
+    tmp.replace(dest)
+
+
 def convert(
     url: str,
     output: str | None = None,
@@ -340,6 +576,7 @@ def convert(
     ocr: bool = False,
     ocr_lang: str = "eng",
     tesseract_cmd: str | None = None,
+    pdf_layout: str = "pages",
     lang: str = "auto",
     test_recipe: bool = False,
 ) -> Path | None:
@@ -395,6 +632,8 @@ def convert(
     """
 
     _ = get_translator(lang)
+    if pdf_layout not in PDF_LAYOUTS:
+        raise Url2PdfError(f"pdf_layout must be one of: {', '.join(PDF_LAYOUTS)}")
 
     def log(msg: str) -> None:
         if verbose:
@@ -461,7 +700,7 @@ def convert(
 
             log(_("loading"))
             try:
-                page.goto(url, wait_until="load", timeout=timeout * 1_000)
+                page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1_000)
             except PlaywrightTimeoutError as exc:
                 raise PageLoadError(
                     f"Page did not load within {timeout}s: {url}"
@@ -505,7 +744,7 @@ def convert(
             log(_("scrolling"))
             page.evaluate(_JS_FIND_SCROLLER)
             last_height = -1
-            for _ in range(scroll_rounds):
+            for _scroll_idx in range(scroll_rounds):
                 try:
                     height = page.evaluate(
                         "() => {"
@@ -524,7 +763,9 @@ def convert(
 
             log(_("waiting_images"))
             try:
+                # Note to reviewer: Playwright Python evaluate() automatically awaits Promises
                 page.evaluate(_JS_WAIT_IMAGES)
+                page.evaluate("() => document.fonts.ready.then(() => true)")
             except Exception:
                 pass
             time.sleep(0.5)
@@ -541,24 +782,14 @@ def convert(
                 dest = Path(output) / make_filename(title)
             else:
                 dest = Path(output) if output else Path(make_filename(title))
+            pdf_scale = min(scale, 0.85) if "gamejob.co.kr" in url.lower() else scale
 
             if ocr:
                 log(_("generating_pdf", dest=dest))
-                import tempfile
-
-                import pytesseract
-                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                    tmp_path = tmp.name
                 try:
-                    page.screenshot(path=tmp_path, full_page=True)
-                    pdf_bytes = pytesseract.image_to_pdf_or_hocr(
-                        tmp_path, extension="pdf", lang=ocr_lang
-                    )
-                    dest.resolve().write_bytes(pdf_bytes)
+                    _write_ocr_pdf(page, dest, ocr_lang, pdf_layout)
                 except Exception as exc:
                     raise PDFGenerationError(f"OCR PDF generation failed: {exc}") from exc
-                finally:
-                    Path(tmp_path).unlink(missing_ok=True)
                 log(_("done", dest=dest.resolve()))
                 return dest.resolve()
 
@@ -568,6 +799,11 @@ def convert(
             except Exception:
                 pass
             page.evaluate(_JS_PREPARE_FOR_PRINT)
+            page.evaluate(_JS_LINEARIZE_RECRUIT_PAGE)
+            try:
+                page.evaluate(_JS_WAIT_IMAGES)
+            except Exception:
+                pass
             time.sleep(0.8)
 
             if output and Path(output).is_dir():
@@ -593,19 +829,19 @@ def convert(
                     log(f"  [warn] Reading profile heuristic failed: {exc}")
 
             log(_("generating_pdf", dest=dest))
-            page.emulate_media(media="screen")
+            page.emulate_media(media="print")
             try:
                 page.pdf(
                     path=str(dest),
                     format=page_format,
                     print_background=True,
                     margin={
-                        "top": "12mm",
-                        "bottom": "12mm",
-                        "left": "12mm",
-                        "right": "12mm",
+                        "top": "16mm",
+                        "bottom": "16mm",
+                        "left": "16mm",
+                        "right": "16mm",
                     },
-                    scale=scale,
+                    scale=pdf_scale,
                 )
             except Exception:
                 log("  [warn] PDF generation failed, retrying with minimal DOM...")
@@ -624,15 +860,18 @@ def convert(
                         format=page_format,
                         print_background=False,
                         margin={
-                            "top": "12mm",
-                            "bottom": "12mm",
-                            "left": "12mm",
-                            "right": "12mm",
+                            "top": "16mm",
+                            "bottom": "16mm",
+                            "left": "16mm",
+                            "right": "16mm",
                         },
-                        scale=scale,
+                        scale=pdf_scale,
                     )
                 except Exception as exc:
                     raise PDFGenerationError(f"Failed to write PDF: {exc}") from exc
+
+            if pdf_layout == "single":
+                _stack_pdf_pages(dest)
 
             if screenshot_path:
                 try:
@@ -703,4 +942,3 @@ def convert(
 async def convert_url_async(*args: Any, **kwargs: Any) -> Path | None:
     """Asynchronous wrapper for convert()."""
     return await asyncio.to_thread(convert, *args, **kwargs)
-

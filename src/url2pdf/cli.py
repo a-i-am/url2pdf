@@ -104,6 +104,12 @@ examples:
         help="paper format: A4, Letter, A3, etc. (default: A4)",
     )
     parser.add_argument(
+        "--pdf-layout",
+        choices=["pages", "single"],
+        default="pages",
+        help="PDF layout: pages for normal pagination, single for one long page",
+    )
+    parser.add_argument(
         "--scale",
         type=float,
         default=0.9,
@@ -206,6 +212,7 @@ Run with --test-recipe --recipe <recipe> to see it in action without saving a PD
                         timeout=args.timeout,
                         scroll_rounds=args.scroll_rounds,
                         page_format=args.format,
+                        pdf_layout=args.pdf_layout,
                         scale=args.scale,
                         verbose=not args.quiet,
                         headless=not args.headed,
@@ -217,6 +224,7 @@ Run with --test-recipe --recipe <recipe> to see it in action without saving a PD
                         recipe=args.recipe,
                         ocr=args.ocr,
                         ocr_lang=args.ocr_lang,
+                        tesseract_cmd=args.tesseract_cmd,
                         lang=args.lang,
                         test_recipe=args.test_recipe,
                     )
@@ -230,6 +238,7 @@ Run with --test-recipe --recipe <recipe> to see it in action without saving a PD
                 timeout=args.timeout,
                 scroll_rounds=args.scroll_rounds,
                 page_format=args.format,
+                pdf_layout=args.pdf_layout,
                 scale=args.scale,
                 verbose=not args.quiet,
                 headless=not args.headed,
