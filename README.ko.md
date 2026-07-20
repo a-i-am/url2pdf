@@ -1,29 +1,27 @@
 # url2pdf
 
-**커맨드라인 또는 Python에서 웹 페이지를 텍스트 선택·검색 가능한 진짜 PDF로 변환합니다.**
+**웹 페이지를 커맨드라인, Python, 데스크톱 GUI에서 검색 가능한 PDF로 변환합니다.**
 
 [![CI](https://github.com/a-i-am/url2pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/a-i-am/url2pdf/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/url2pdf)](https://pypi.org/project/url2pdf/)
 [![Python](https://img.shields.io/pypi/pyversions/url2pdf)](https://pypi.org/project/url2pdf/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
----
-
 > English README: [README.md](README.md)
 
----
+## 주요 기능
 
-## 왜 url2pdf인가?
+- Playwright Chromium 기반 실제 브라우저 렌더링.
+- 스크롤 중 로드되는 지연 콘텐츠 대응.
+- 일반 HTML 페이지에서 텍스트 선택과 검색이 가능한 PDF 생성.
+- 데스크톱 GUI: `url2pdf-gui`.
+- 캡처 프로필: 원본 유지, 증거 메타데이터, 읽기 모드.
+- 캡처 전 클릭, 대기, 스크롤을 실행하는 Recipe JSON.
+- 이미지 중심 페이지용 Tesseract OCR 모드.
+- PDF 레이아웃 선택: 일반 페이지 나누기 또는 긴 1페이지.
+- 배치 변환, 세션 파일, 미리보기, 연결 확인 모드.
 
-대부분의 HTML→PDF 도구는 이미지로만 출력하거나(텍스트 선택 불가), 스크롤 컨테이너 안쪽 내용과 지연 로딩 콘텐츠를 놓칩니다. **url2pdf**는 두 문제를 모두 해결합니다.
-
-### ✨ 주요 기능 (Features)
-- **실제 브라우저 렌더링:** [Playwright](https://playwright.dev/python/)를 통해 실제 Chromium 브라우저를 구동하여 JavaScript, 동적 콘텐츠, 최신 CSS를 완벽하게 지원합니다.
-- **지연 로딩(Lazy-Load) 완벽 대응:** 가장 깊은 스크롤 컨테이너를 자동으로 감지하고 반복 스크롤하여 이미지나 무한 리스트 등의 지연 로딩 콘텐츠를 모두 불러옵니다.
-- **진짜 PDF 출력:** 이미지 통짜 PDF가 아닌, 텍스트 레이어가 살아있는 진짜 PDF를 출력합니다. 일반 문서처럼 텍스트 복사, 검색, 형광펜 기능이 모두 동작합니다.
-- **철저한 개인정보 보호:** 모든 변환 작업은 사용자의 로컬 환경에서만 수행됩니다. URL, IP, 변환된 PDF 내용 등 어떠한 사용자 데이터도 외부 서버로 전송되지 않습니다.
-
----
+모든 변환은 로컬에서 실행됩니다. url2pdf는 URL이나 PDF 내용을 외부 서비스로 보내지 않습니다.
 
 ## 설치
 
@@ -32,138 +30,174 @@ pip install url2pdf
 playwright install chromium
 ```
 
-* **Python 3.10 이상**이 필요합니다. url2pdf 패키지 자체는 매우 가볍지만(약 15KB), 첫 설치 시 Playwright 구동을 위한 Chromium 브라우저 바이너리(약 100-150MB) 다운로드가 필요합니다.*
+OCR은 선택 의존성과 Tesseract 바이너리가 필요합니다.
 
----
+```bash
+pip install "url2pdf[ocr]"
+```
+
+Tesseract는 별도로 설치해야 합니다. 한국어 OCR은 `kor+eng`을 사용하고 Korean trained data를 설치해야 합니다.
+
+Python 3.10 이상이 필요합니다.
 
 ## 빠른 시작
 
-### 커맨드라인
-
 ```bash
-# 기본 사용 — 파일명은 페이지 제목에서 자동 생성
+# 기본 PDF
 url2pdf https://example.com
 
 # 저장 경로 지정
 url2pdf https://example.com -o report.pdf
 
-# Letter 용지, 85% 배율, 90초 타임아웃
-url2pdf https://example.com --format Letter --scale 0.85 --timeout 90
+# 데스크톱 GUI 실행
+url2pdf-gui
 
-# 조용한 모드 (진행 메시지 없음)
-url2pdf https://example.com -q
+# 페이지를 나누지 않고 긴 1페이지 PDF 생성
+url2pdf https://example.com --pdf-layout single
+
+# 이미지 중심 페이지 OCR PDF
+url2pdf https://example.com --ocr --ocr-lang eng
+
+# 한국어 + 영어 OCR
+url2pdf https://example.com --ocr --ocr-lang kor+eng
+
+# 캡처 전 레시피 실행
+url2pdf https://example.com --recipe actions.json
+
+# PDF 생성 없이 레시피를 눈으로 테스트
+url2pdf https://example.com --recipe actions.json --test-recipe
+
+# 텍스트 파일의 URL 목록 일괄 변환
+url2pdf --batch urls.txt
 ```
 
-### Python API
+## GUI
 
-```python
-from url2pdf import convert
+실행:
 
-# 생성된 파일의 pathlib.Path를 반환
-path = convert("https://example.com")
-print(f"저장됨: {path}")
-
-# 전체 옵션
-path = convert(
-    "https://example.com",
-    output="report.pdf",
-    timeout=90,
-    page_format="Letter",
-    scale=0.85,
-    verbose=False,
-)
+```bash
+url2pdf-gui
 ```
 
----
+GUI는 URL 입력, 저장 위치 선택, 캡처 프로필, PDF 미리보기, Recipe JSON, OCR 언어, Tesseract 경로, PDF 레이아웃 선택을 지원합니다.
+
+## Recipe JSON
+
+Recipe JSON은 PDF 캡처 전에 작은 브라우저 동작을 실행합니다.
+
+```json
+[
+  { "action": "wait", "ms": 2000 },
+  { "action": "click", "selector": "#agree-btn", "optional": true },
+  { "action": "scroll" }
+]
+```
+
+지원 액션:
+
+| 액션 | 필드 | 설명 |
+|---|---|---|
+| `wait` | `ms` | 0-60000 밀리초 대기합니다. |
+| `click` | `selector`, `optional` | CSS 선택자를 클릭합니다. optional이면 요소가 없어도 무시합니다. |
+| `scroll` | `selector` 선택 | 페이지 또는 선택한 스크롤 컨테이너를 스크롤합니다. |
+
+내장 프리셋:
+
+```bash
+url2pdf https://example.com --recipe dismiss-cookies
+url2pdf https://example.com --recipe lazy-load
+url2pdf https://example.com --help-recipe
+```
 
 ## CLI 옵션
 
 | 플래그 | 기본값 | 설명 |
-|--------|--------|------|
-| `url` | *(필수)* | 변환할 URL |
-| `-o / --output` | 자동 | 출력 PDF 경로 |
-| `--format` | `A4` | 용지 형식 (`A4`, `Letter`, `A3`, …) |
-| `--scale` | `0.9` | CSS 배율 (0.1 – 2.0) |
-| `--timeout` | `60` | 페이지 로드 타임아웃 (초) |
-| `--scroll-rounds` | `80` | 지연 콘텐츠용 최대 스크롤 횟수 |
-| `-q / --quiet` | 꺼짐 | 진행 메시지 숨기기 |
+|---|---|---|
+| `url` | `--batch` 사용 시 선택 | 변환할 URL. |
+| `-o`, `--output` | 페이지 제목 | 출력 PDF 경로 또는 폴더. |
+| `--batch FILE` | 꺼짐 | 텍스트 파일의 URL 목록을 일괄 변환합니다. |
+| `--check` | 꺼짐 | HTTP 연결만 확인합니다. |
+| `--format FORMAT` | `A4` | `A4`, `Letter`, `A3` 같은 용지 형식. |
+| `--pdf-layout pages\|single` | `pages` | 일반 페이지 나누기 또는 긴 1페이지. |
+| `--scale SCALE` | `0.9` | PDF 배율, 0.1부터 2.0까지. |
+| `--timeout SECONDS` | `60` | 페이지 로드 타임아웃. |
+| `--scroll-rounds N` | `80` | 지연 콘텐츠용 최대 스크롤 횟수. |
+| `--profile faithful\|evidence\|reading` | `faithful` | 캡처 프로필. |
+| `--preview` | 꺼짐 | 생성된 PDF를 OS 기본 뷰어로 엽니다. |
+| `--recipe FILE_OR_PRESET` | 꺼짐 | 캡처 전 레시피 액션을 실행합니다. |
+| `--help-recipe` | 꺼짐 | 레시피 도움말을 표시합니다. |
+| `--test-recipe` | 꺼짐 | 레시피를 보이는 브라우저에서 실행하고 PDF는 만들지 않습니다. |
+| `--ocr` | 꺼짐 | 전체 페이지 스크린샷 기반 OCR PDF를 생성합니다. |
+| `--ocr-lang LANG` | `eng` | Tesseract 언어. 예: `eng`, `kor+eng`. |
+| `--tesseract-cmd PATH` | 자동 | Tesseract 실행 파일 경로. |
+| `--session FILE` | 꺼짐 | 로그인 세션용 Playwright `storageState.json`. |
+| `--headed` | 꺼짐 | 변환 중 Chromium 창을 표시합니다. |
+| `--manual-verification` | 꺼짐 | 브라우저 인증 화면이 감지되면 수동 확인을 기다립니다. |
+| `--lang auto\|ko\|en` | `auto` | CLI와 GUI 메시지 언어. |
+| `-q`, `--quiet` | 꺼짐 | 진행 메시지를 숨깁니다. |
 
----
-
-## 동작 원리 (Tech Stack)
-
-**url2pdf**는 **Python**, **Playwright**, **pytest**를 기반으로 개발되었습니다.
-1. **로드** — 헤드리스 Chromium으로 URL을 열고 페이지 로딩이 완료될 때까지 대기합니다.
-2. **스크롤** — 가장 깊은 스크롤 컨테이너를 찾아 반복 스크롤해 지연 로딩 콘텐츠를 모두 활성화합니다.
-3. **재구성** — 해당 컨테이너 내용을 깨끗한 `<body>`로 이식하고 overflow·고정 위치 제약을 제거합니다.
-4. **출력** — Chromium 내장 PDF 렌더러로 텍스트 레이어가 포함된 고품질 PDF를 생성합니다.
-
----
-
-## 한계점 (Limitations)
-
-- **로그인 및 세션:** 현재 로그인이 필요한 페이지나 활성화된 세션 유지가 필요한 사이트는 지원하지 않습니다 (단, API로 직접 쿠키를 주입하는 경우는 예외).
-- **봇 방지 시스템:** Cloudflare Turnstile, reCAPTCHA 등 강력한 봇 방지 화면이 있는 사이트는 헤드리스 브라우저 접근을 차단할 수 있습니다.
-- **무한 스크롤:** 끝이 없는 웹 페이지의 경우 무한 루프를 방지하기 위해 `--scroll-rounds` 인자를 통해 스크롤 횟수가 제한됩니다.
-
----
-
-## 업데이트 계획 (Roadmap)
-
-url2pdf는 지속적으로 개선될 예정입니다. 향후 릴리즈(v1.1.0+)에서 다음 기능들이 추가될 계획입니다:
-
-- **GUI 프로그램 제공:** CLI 환경이 낯선 일반 사용자를 위해 클릭만으로 변환 가능한 데스크톱/웹 기반 UI를 제공할 예정입니다.
-- **지원 도메인 사전 확인 기능:** `url2pdf --check <url>` 명령어를 통해 변환 성공률이 높은(검증된) 도메인인지 프로그램 내에서 바로 확인할 수 있는 기능을 지원합니다.
-- **일괄 변환 (Bulk Conversion):** `.txt`나 `.csv` 파일로 여러 링크를 입력받아 대량으로 변환하는 기능을 지원합니다.
-- **비동기(Async) 지원:** FastAPI 등 비동기 Python 애플리케이션과의 원활한 통합을 위한 비동기 API를 제공할 예정입니다.
-- **AI 통합 기능 (예정):**
-  - *스마트 콘텐츠 추출*: LLM을 활용해 렌더링 전 광고나 네비게이션 바 등 불필요한 요소를 식별하고 제거합니다.
-  - *자동 요약*: `--summarize` 옵션을 통해 페이지 내용의 AI 요약본을 생성하여 PDF 마지막 장에 추가합니다.
-- **다국어 및 자동 감지 (i18n):** 사용자의 OS 로캘 환경을 감지하여 CLI 메시지가 한국어/영어로 자동 출력되도록 개선합니다.
-- **기본 저장 경로 설정:** 바탕화면이나 다운로드 폴더로 자동 저장되도록 지원합니다.
-
----
-
-## 오류 처리
-
-url2pdf는 타입이 있는 예외를 발생시킵니다:
+## Python API
 
 ```python
 from url2pdf import convert
-from url2pdf.exceptions import PageLoadError, PDFGenerationError
 
-try:
-    convert("https://example.com", output="out.pdf")
-except PageLoadError as e:
-    print(f"페이지를 열 수 없습니다: {e}")
-except PDFGenerationError as e:
-    print(f"PDF 생성 실패: {e}")
+path = convert(
+    "https://example.com",
+    output="report.pdf",
+    page_format="A4",
+    pdf_layout="pages",
+    profile="faithful",
+    timeout=60,
+)
+
+print(path)
 ```
 
----
+OCR:
 
-## 개발 참여
+```python
+from url2pdf import convert
 
-프로젝트 시작일: **2026년 6월 11일** | 첫 릴리즈(v1.0.0): **2026년 6월 30일**
+convert(
+    "https://example.com",
+    output="ocr.pdf",
+    ocr=True,
+    ocr_lang="kor+eng",
+    tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+)
+```
+
+## 한계
+
+- OCR 품질은 Tesseract, 설치된 언어 데이터, 원본 이미지 품질, PDF 뷰어에 영향을 받습니다. 검색은 되더라도 선택 영역 위치가 완벽하지 않을 수 있습니다.
+- 봇 방지, 유료 장벽, 강한 자동화 차단 사이트는 `--headed`, `--manual-verification`, 세션 파일이 필요할 수 있습니다.
+- Reading 모드는 휴리스틱입니다. 특이한 페이지에서는 필요한 콘텐츠를 제거할 수 있습니다.
+- 매우 긴 이미지 중심 페이지는 OCR PDF 파일이 커질 수 있습니다.
+
+## 개발
 
 ```bash
 git clone https://github.com/a-i-am/url2pdf
 cd url2pdf
-pip install -e ".[dev]"
+pip install -e ".[dev,ocr]"
 playwright install chromium
 
-# 테스트 실행
 pytest
-
-# 린트 + 타입 검사
 ruff check src tests
 mypy src
+python -m build
 ```
 
-버그 리포트와 풀 리퀘스트 환영합니다!  
-큰 변경 사항은 먼저 [이슈](https://github.com/a-i-am/url2pdf/issues)를 열어 논의해 주세요.
+## 릴리즈 노트
 
----
+### v1.2.1
+
+- `url2pdf-gui` 데스크톱 GUI를 추가했습니다.
+- OCR 언어와 Tesseract 경로 옵션을 추가했습니다.
+- `--pdf-layout pages|single` 옵션을 추가했습니다.
+- GUI 레시피 빌더/도움말과 CLI 레시피 테스트 모드를 추가했습니다.
+- 페이지 잘림, 지연 이미지, 웹 폰트, 오버레이, 넓은 레이아웃 처리를 개선했습니다.
+- GUI 옵션 전달, OCR 텍스트 정규화, 레이아웃 옵션에 대한 회귀 테스트를 추가했습니다.
 
 ## 라이선스
 

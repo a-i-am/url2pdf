@@ -1,197 +1,203 @@
 # url2pdf
 
-**Convert any web page to a searchable, text-selectable PDF — from the command line or Python.**
+**Convert web pages to searchable PDFs from the command line, Python, or a small desktop GUI.**
 
 [![CI](https://github.com/a-i-am/url2pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/a-i-am/url2pdf/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/url2pdf)](https://pypi.org/project/url2pdf/)
 [![Python](https://img.shields.io/pypi/pyversions/url2pdf)](https://pypi.org/project/url2pdf/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
----
+> Korean README: [README.ko.md](README.ko.md)
 
-> 한국어 README는 [README.ko.md](README.ko.md)를 참고하세요.
+## Features
 
----
+- Browser-based rendering with Playwright Chromium.
+- Lazy-load scrolling for pages that load content while scrolling.
+- Searchable, selectable PDF output for normal HTML pages.
+- Desktop GUI: `url2pdf-gui`.
+- Capture profiles: faithful, evidence metadata, and reading mode.
+- Recipe JSON actions for click, wait, and scroll before capture.
+- OCR mode for image-heavy pages with Tesseract.
+- Page layout option: normal pages or one long PDF page.
+- Batch conversion, session file support, preview, and connection check mode.
 
-## Why url2pdf?
-
-Most HTML-to-PDF tools either produce image-only output (no text selection/search) or miss content hidden inside scrollable containers and lazy-loaded sections. **url2pdf** solves both.
-
-### ✨ Features
-- **Real Browser Rendering:** Uses a real Chromium browser via [Playwright](https://playwright.dev/python/) to perfectly handle JavaScript, dynamic content, and modern CSS.
-- **Lazy-Load Triggering:** Automatically detects and scrolls the deepest scrollable container to ensure all lazy-loaded content (images, infinite lists) is fully loaded.
-- **True PDF Output:** Outputs true text-layer PDFs, meaning you can search, copy, and highlight text just like a native document.
-- **Privacy First:** All conversions happen locally on your machine. No URLs, IPs, or PDF contents are collected or sent to any external servers.
-
----
+All conversion runs locally. url2pdf does not send your URL or PDF content to an external service.
 
 ## Installation
 
-To install the core tool:
 ```bash
 pip install url2pdf
-```
-
-To use the `--ocr` feature for image-heavy pages, install the optional `ocr` dependency:
-```bash
-pip install "url2pdf[ocr]"
-```
-*Note: You must also install the `tesseract` binary on your system (e.g., `apt install tesseract-ocr` or via the Windows installer) for the `--ocr` feature to work.*
-
-```bash
 playwright install chromium
 ```
 
-*Requires **Python 3.10+**. The url2pdf package itself is very lightweight (approx. 15KB), but it requires downloading the Playwright Chromium browser binaries (approx. 100-150MB) on the first install.*
-
----
-
-## Quick start
-
-### Command line
+OCR needs the optional Python packages and the Tesseract binary:
 
 ```bash
-# 기본 사용 (faithful 프로필)
-url2pdf https://example.com
-
-# 캡처 프로필 지정 및 PDF 미리보기
-url2pdf https://example.com --profile reading --preview
-
-# 로그인 세션 유지 (미리 저장된 storageState.json 사용)
-url2pdf https://github.com --session session.json
-
-# 커스텀 동작 (레시피) 실행
-url2pdf https://example.com --recipe actions.json
-
-# OCR을 사용해 이미지 중심 페이지 캡처 (pytesseract 및 tesseract 바이너리 필요)
-# 긴 페이지의 경우 스크린샷 이미지 크기나 타임아웃 제한으로 인해 실패할 수 있습니다.
-url2pdf https://example.com --ocr --ocr-lang kor+eng
-
-# CLI 출력 언어 지정 (기본값: auto)
-url2pdf https://example.com --lang ko
+pip install "url2pdf[ocr]"
 ```
 
-* `--profile`: 캡처 프로필을 지정합니다.
-  * `faithful` (기본값): 화면에 보이는 그대로 캡처합니다.
-  * `evidence`: 캡처 후 원본 URL과 SHA-256 해시가 포함된 메타데이터 JSON 파일을 함께 생성합니다.
-  * `reading`: 광고, 내비게이션 바 등 불필요한 요소를 제거하고 본문 위주로 캡처합니다. (※ 휴리스틱 기반으로 작동하므로 사이트 구조에 따라 완벽하게 제거되지 않거나 본문 일부가 누락될 수 있는 한계가 있습니다.)
+Install Tesseract separately, then add language data as needed. For Korean OCR, use `kor+eng` and make sure Korean trained data is installed.
 
-* `--preview`: 변환 완료 후 생성된 PDF를 OS 기본 뷰어로 즉시 열어 확인합니다.
+Requires Python 3.10+.
 
-### Python API
+## Quick Start
+
+```bash
+# Basic PDF
+url2pdf https://example.com
+
+# Save to a specific path
+url2pdf https://example.com -o report.pdf
+
+# Open the desktop GUI
+url2pdf-gui
+
+# One long PDF page instead of normal page breaks
+url2pdf https://example.com --pdf-layout single
+
+# OCR PDF for image-heavy pages
+url2pdf https://example.com --ocr --ocr-lang eng
+
+# Korean + English OCR
+url2pdf https://example.com --ocr --ocr-lang kor+eng
+
+# Run a recipe before capture
+url2pdf https://example.com --recipe actions.json
+
+# Test a recipe visually without generating a PDF
+url2pdf https://example.com --recipe actions.json --test-recipe
+
+# Batch conversion from a text file
+url2pdf --batch urls.txt
+```
+
+## GUI
+
+Run:
+
+```bash
+url2pdf-gui
+```
+
+The GUI supports URL input, output selection, capture profiles, PDF preview, recipe JSON, OCR language, Tesseract path, and page layout selection.
+
+## Recipe JSON
+
+Recipe JSON runs small browser actions before PDF capture.
+
+```json
+[
+  { "action": "wait", "ms": 2000 },
+  { "action": "click", "selector": "#agree-btn", "optional": true },
+  { "action": "scroll" }
+]
+```
+
+Supported actions:
+
+| Action | Fields | Description |
+|---|---|---|
+| `wait` | `ms` | Waits 0-60000 milliseconds. |
+| `click` | `selector`, `optional` | Clicks a CSS selector. Optional clicks ignore missing elements. |
+| `scroll` | `selector` optional | Scrolls the page or a selected scroll container. |
+
+Built-in presets:
+
+```bash
+url2pdf https://example.com --recipe dismiss-cookies
+url2pdf https://example.com --recipe lazy-load
+url2pdf https://example.com --help-recipe
+```
+
+## CLI Reference
+
+| Flag | Default | Description |
+|---|---|---|
+| `url` | optional with `--batch` | URL to convert. |
+| `-o`, `--output` | page title | Output PDF path or directory. |
+| `--batch FILE` | off | Convert URLs listed in a text file. |
+| `--check` | off | Check HTTP connection only. |
+| `--format FORMAT` | `A4` | Paper format such as `A4`, `Letter`, or `A3`. |
+| `--pdf-layout pages\|single` | `pages` | Normal page breaks or one long page. |
+| `--scale SCALE` | `0.9` | PDF scale from 0.1 to 2.0. |
+| `--timeout SECONDS` | `60` | Page load timeout. |
+| `--scroll-rounds N` | `80` | Max scroll attempts for lazy content. |
+| `--profile faithful\|evidence\|reading` | `faithful` | Capture profile. |
+| `--preview` | off | Open the generated PDF with the OS default viewer. |
+| `--recipe FILE_OR_PRESET` | off | Run recipe actions before capture. |
+| `--help-recipe` | off | Show recipe help. |
+| `--test-recipe` | off | Run recipe visibly and exit without PDF output. |
+| `--ocr` | off | Generate an OCR PDF from a full-page screenshot. |
+| `--ocr-lang LANG` | `eng` | Tesseract language, for example `eng` or `kor+eng`. |
+| `--tesseract-cmd PATH` | auto | Path to the Tesseract executable. |
+| `--session FILE` | off | Playwright `storageState.json` for logged-in sessions. |
+| `--headed` | off | Show Chromium while converting. |
+| `--manual-verification` | off | Pause when browser verification is detected. |
+| `--lang auto\|ko\|en` | `auto` | CLI and GUI message language. |
+| `-q`, `--quiet` | off | Suppress progress output. |
+
+## Python API
 
 ```python
 from url2pdf import convert
 
-# Returns pathlib.Path of the generated file
-path = convert("https://example.com")
-print(f"Saved to {path}")
-
-# Full options
 path = convert(
     "https://example.com",
     output="report.pdf",
-    timeout=90,
-    page_format="Letter",
-    scale=0.85,
-    verbose=False,
+    page_format="A4",
+    pdf_layout="pages",
+    profile="faithful",
+    timeout=60,
 )
+
+print(path)
 ```
 
----
-
-## CLI reference
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `url` | *(required)* | URL to convert |
-| `-o / --output` | auto | Output PDF path |
-| `--format` | `A4` | Paper format (`A4`, `Letter`, `A3`, …) |
-| `--scale` | `0.9` | CSS scale factor (0.1 – 2.0) |
-| `--timeout` | `60` | Page load timeout in seconds |
-| `--scroll-rounds` | `80` | Max scroll iterations for lazy content |
-| `-q / --quiet` | off | Suppress progress messages |
-
----
-
-## How it works (Tech Stack)
-
-**url2pdf** is built with **Python**, **Playwright**, and **pytest**.
-1. **Load** — opens the URL in a headless Chromium instance and waits for the page to finish loading.
-2. **Scroll** — finds the deepest scrollable container and scrolls it repeatedly to trigger lazy-loaded content.
-3. **Rebuild** — clones the container's content into a clean `<body>` and removes overflow/fixed-position constraints.
-4. **Print** — uses Chromium's built-in PDF renderer to produce a text-layer PDF.
-
----
-
-## Limitations
-
-- **Authentication:** Sites requiring login or active sessions are not currently supported (unless cookies are injected manually via API).
-- **Anti-Bot Protection:** Sites with strict Cloudflare Turnstile, reCAPTCHA, or similar bot-protection screens may block the headless browser.
-- **Infinite Scrolling:** Endless web pages are limited by the `--scroll-rounds` parameter to prevent infinite loops.
-
----
-
-## Roadmap
-
-We are constantly improving `url2pdf`. Here is what is planned for future releases (v1.1.0+):
-
-- **GUI Version:** A user-friendly desktop or web wrapper for non-CLI users.
-- **Supported Domains Checker:** A built-in command (`url2pdf --check <url>`) to verify if a domain is known to convert stably.
-- **Bulk Conversion:** Convert a list of URLs sequentially from a `.txt` or `.csv` file.
-- **Async Support:** Asynchronous API for better integration into async Python applications (FastAPI, etc.).
-- **AI Integration (Planned):** 
-  - *Smart Content Extraction*: Use LLMs to identify and remove boilerplate (ads, navbars) before PDF generation.
-  - *Auto-Summarization*: A `--summarize` flag to generate and append an AI summary of the page to the final PDF.
-- **i18n & Auto-Language:** CLI messages will automatically adapt to your OS locale (e.g., English / Korean).
-- **Default Save Path:** Configure a global default save directory (like `~/Downloads`).
-
----
-
-## Error handling
-
-url2pdf raises typed exceptions you can catch:
+OCR:
 
 ```python
 from url2pdf import convert
-from url2pdf.exceptions import PageLoadError, PDFGenerationError
 
-try:
-    convert("https://example.com", output="out.pdf")
-except PageLoadError as e:
-    print(f"Could not load page: {e}")
-except PDFGenerationError as e:
-    print(f"PDF generation failed: {e}")
+convert(
+    "https://example.com",
+    output="ocr.pdf",
+    ocr=True,
+    ocr_lang="eng",
+    tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+)
 ```
 
----
+## Limitations
+
+- OCR quality depends on Tesseract, installed language data, source image quality, and the PDF viewer. Text search may work even when selection boxes are not perfectly aligned.
+- Sites with bot protection, paywalls, or aggressive anti-automation may require `--headed`, `--manual-verification`, or a session file.
+- Reading mode is heuristic. It can remove useful content on unusual pages.
+- Very long image-heavy pages can create large OCR PDFs.
 
 ## Development
-
-Project started: **June 11, 2026** | First release (v1.0.0): **June 30, 2026**
 
 ```bash
 git clone https://github.com/a-i-am/url2pdf
 cd url2pdf
-pip install -e ".[dev]"
+pip install -e ".[dev,ocr]"
 playwright install chromium
 
-# Run tests
 pytest
-
-# Lint + type-check
 ruff check src tests
 mypy src
+python -m build
 ```
 
----
+## Release Notes
 
-## Contributing
+### v1.2.1
 
-Bug reports and pull requests are welcome!  
-Please open an [issue](https://github.com/a-i-am/url2pdf/issues) before submitting a large change.
-
----
+- Added the `url2pdf-gui` desktop GUI.
+- Added OCR language and Tesseract path controls.
+- Added `--pdf-layout pages|single`.
+- Added recipe builder/help flow in the GUI and recipe test mode in the CLI.
+- Improved print preparation for page breaks, lazy images, fonts, overlays, and wide layouts.
+- Added packaging and regression tests for GUI option forwarding, OCR text normalization, and layout options.
 
 ## License
 
