@@ -38,6 +38,13 @@ _OCR_FONT_CANDIDATES = (
     r"C:\Windows\Fonts\malgun.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.otf",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJKkr-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJKkr-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJKkr-Regular.otf",
+    "/usr/share/fonts/noto-cjk/NotoSansCJKkr-Regular.ttc",
     "/System/Library/Fonts/AppleSDGothicNeo.ttc",
 )
 
@@ -490,53 +497,59 @@ def _write_ocr_pdf(page: Page, dest: Path, ocr_lang: str, pdf_layout: str) -> No
         shot_path = Path(tmp.name)
     try:
         page.screenshot(path=str(shot_path), full_page=True)
-        img = Image.open(shot_path)
-        page_h = max(1, int(img.width * 297 / 210))
         out = fitz.open()
-        fontfile = _find_ocr_fontfile()
-        for y in range(0, img.height, page_h):
-            crop = img.crop((0, y, img.width, min(y + page_h, img.height))).convert("RGB")
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_crop:
-                crop_path = Path(tmp_crop.name)
-            try:
-                crop.save(crop_path)
-                pdf_page = out.new_page(width=crop.width, height=crop.height)
-                pdf_page.insert_image(pdf_page.rect, filename=str(crop_path))
-                data = pytesseract.image_to_data(
-                    str(crop_path),
-                    lang=ocr_lang,
-                    output_type=pytesseract.Output.DICT,
-                )
-                lines: dict[tuple[int, int, int], list[int]] = {}
-                for idx, word in enumerate(data["text"]):
-                    if word.strip():
-                        key = (data["block_num"][idx], data["par_num"][idx], data["line_num"][idx])
-                        lines.setdefault(key, []).append(idx)
-                for indexes in lines.values():
-                    for run in _ocr_text_runs(data, indexes):
-                        words = [data["text"][i] for i in run]
-                        text = _normalize_ocr_text(" ".join(words))
-                        if not text:
-                            continue
-                        if fontfile is None and not text.isascii():
-                            continue
-                        x0 = min(data["left"][i] for i in run)
-                        y0 = min(data["top"][i] for i in run)
-                        y1 = max(data["top"][i] + data["height"][i] for i in run)
-                        fontsize = max(6, (y1 - y0) * 0.8)
-                        pdf_page.insert_text(
-                            fitz.Point(x0, y0 + fontsize),
-                            text,
-                            fontfile=fontfile,
-                            fontname="malgun" if fontfile else "helv",
-                            fontsize=fontsize,
-                            render_mode=3,
-                            overlay=True,
+        try:
+            with Image.open(shot_path) as img:
+                page_h = max(1, int(img.width * 297 / 210))
+                fontfile = _find_ocr_fontfile()
+                for y in range(0, img.height, page_h):
+                    crop = img.crop((0, y, img.width, min(y + page_h, img.height))).convert("RGB")
+                    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_crop:
+                        crop_path = Path(tmp_crop.name)
+                    try:
+                        crop.save(crop_path)
+                        pdf_page = out.new_page(width=crop.width, height=crop.height)
+                        pdf_page.insert_image(pdf_page.rect, filename=str(crop_path))
+                        data = pytesseract.image_to_data(
+                            str(crop_path),
+                            lang=ocr_lang,
+                            output_type=pytesseract.Output.DICT,
                         )
-            finally:
-                crop_path.unlink(missing_ok=True)
-        out.save(dest.resolve(), garbage=4, deflate=True)
-        out.close()
+                        lines: dict[tuple[int, int, int], list[int]] = {}
+                        for idx, word in enumerate(data["text"]):
+                            if word.strip():
+                                key = (
+                                    data["block_num"][idx],
+                                    data["par_num"][idx],
+                                    data["line_num"][idx],
+                                )
+                                lines.setdefault(key, []).append(idx)
+                        for indexes in lines.values():
+                            for run in _ocr_text_runs(data, indexes):
+                                words = [data["text"][i] for i in run]
+                                text = _normalize_ocr_text(" ".join(words))
+                                if not text:
+                                    continue
+                                if fontfile is None and not text.isascii():
+                                    continue
+                                x0 = min(data["left"][i] for i in run)
+                                y0 = min(data["top"][i] for i in run)
+                                y1 = max(data["top"][i] + data["height"][i] for i in run)
+                                fontsize = max(6, (y1 - y0) * 0.8)
+                                pdf_page.insert_text(
+                                    fitz.Point(x0, y0 + fontsize),
+                                    text,
+                                    fontfile=fontfile,
+                                    fontname="malgun" if fontfile else "helv",
+                                    fontsize=fontsize,
+                                    render_mode=3,
+                                    overlay=True,
+                                )
+                    finally:
+                        crop_path.unlink(missing_ok=True)
+            out.save(dest.resolve(), garbage=4, deflate=True)
+        finally:
+            out.close()
         if pdf_layout == "single":
             _stack_pdf_pages(dest)
     finally:
