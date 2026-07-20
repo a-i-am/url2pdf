@@ -11,7 +11,7 @@
 
 ## Demo
 
-![url2pdf demo](https://raw.githubusercontent.com/a-i-am/url2pdf/main/docs/demo.gif)
+![url2pdf demo](docs/demo.gif)
 
 ## Features
 
