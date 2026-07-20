@@ -34,6 +34,13 @@ CHALLENGE_TITLE_KEYWORDS = (
 
 PDF_LAYOUTS = ("pages", "single")
 
+_OCR_FONT_CANDIDATES = (
+    r"C:\Windows\Fonts\malgun.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.otf",
+    "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+)
+
 _PRINT_CSS = """
 * {
     -webkit-print-color-adjust: exact !important;
@@ -237,7 +244,7 @@ _JS_LINEARIZE_RECRUIT_PAGE = """
     ];
     for (const sel of selectors) {
         for (const el of document.querySelectorAll(sel)) {
-            el.style.cssText += [
+            el.style.cssText += ';' + [
                 'display:block!important',
                 'float:none!important',
                 'position:static!important',
@@ -448,6 +455,13 @@ def _is_korean_text(text: str) -> bool:
     return bool(re.search(r"[가-힣ㄱ-ㅎㅏ-ㅣ]", text))
 
 
+def _find_ocr_fontfile() -> str | None:
+    for candidate in _OCR_FONT_CANDIDATES:
+        if Path(candidate).is_file():
+            return candidate
+    return None
+
+
 def _ocr_text_runs(data: dict[str, Any], indexes: list[int]) -> list[list[int]]:
     runs: list[list[int]] = []
     for idx in sorted(indexes, key=lambda i: data["left"][i]):
@@ -479,9 +493,7 @@ def _write_ocr_pdf(page: Page, dest: Path, ocr_lang: str, pdf_layout: str) -> No
         img = Image.open(shot_path)
         page_h = max(1, int(img.width * 297 / 210))
         out = fitz.open()
-        fontfile: str | None = r"C:\Windows\Fonts\malgun.ttf"
-        if fontfile is not None and not Path(fontfile).is_file():
-            fontfile = None
+        fontfile = _find_ocr_fontfile()
         for y in range(0, img.height, page_h):
             crop = img.crop((0, y, img.width, min(y + page_h, img.height))).convert("RGB")
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_crop:
@@ -505,6 +517,8 @@ def _write_ocr_pdf(page: Page, dest: Path, ocr_lang: str, pdf_layout: str) -> No
                         words = [data["text"][i] for i in run]
                         text = _normalize_ocr_text(" ".join(words))
                         if not text:
+                            continue
+                        if fontfile is None and not text.isascii():
                             continue
                         x0 = min(data["left"][i] for i in run)
                         y0 = min(data["top"][i] for i in run)
@@ -536,21 +550,25 @@ def _stack_pdf_pages(dest: Path) -> None:
         raise PDFGenerationError("--pdf-layout single requires pymupdf") from exc
 
     src = fitz.open(dest)
-    if src.page_count <= 1:
-        return
-    width = max(page.rect.width for page in src)
-    height = sum(page.rect.height for page in src)
-    out = fitz.open()
-    page = out.new_page(width=width, height=height)
-    y = 0
-    for src_page in src:
-        rect = fitz.Rect(0, y, src_page.rect.width, y + src_page.rect.height)
-        page.show_pdf_page(rect, src, src_page.number)
-        y += src_page.rect.height
-    tmp = dest.with_suffix(".single.tmp.pdf")
-    out.save(tmp)
-    out.close()
-    src.close()
+    try:
+        if src.page_count <= 1:
+            return
+        width = max(page.rect.width for page in src)
+        height = sum(page.rect.height for page in src)
+        out = fitz.open()
+        tmp = dest.with_suffix(".single.tmp.pdf")
+        try:
+            page = out.new_page(width=width, height=height)
+            y = 0
+            for src_page in src:
+                rect = fitz.Rect(0, y, src_page.rect.width, y + src_page.rect.height)
+                page.show_pdf_page(rect, src, src_page.number)
+                y += src_page.rect.height
+            out.save(tmp)
+        finally:
+            out.close()
+    finally:
+        src.close()
     tmp.replace(dest)
 
 
@@ -765,7 +783,12 @@ def convert(
             try:
                 # Note to reviewer: Playwright Python evaluate() automatically awaits Promises
                 page.evaluate(_JS_WAIT_IMAGES)
-                page.evaluate("() => document.fonts.ready.then(() => true)")
+                page.evaluate(
+                    "() => Promise.race(["
+                    "document.fonts.ready.then(() => true),"
+                    "new Promise(resolve => setTimeout(() => resolve(false), 5000))"
+                    "])"
+                )
             except Exception:
                 pass
             time.sleep(0.5)
