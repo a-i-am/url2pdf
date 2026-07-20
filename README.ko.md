@@ -11,7 +11,7 @@
 
 ## 데모
 
-![url2pdf 데모](docs/demo.gif)
+![url2pdf 데모](https://raw.githubusercontent.com/a-i-am/url2pdf/main/docs/demo.gif)
 
 ## 주요 기능
 

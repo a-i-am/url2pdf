@@ -13,7 +13,9 @@ from url2pdf.converter import (
     _JS_DISMISS_OVERLAYS,
     _JS_LINEARIZE_RECRUIT_PAGE,
     _JS_PREPARE_FOR_PRINT,
+    _OCR_FONT_CANDIDATES,
     _PRINT_CSS,
+    _find_ocr_fontfile,
     _normalize_ocr_text,
     _ocr_text_runs,
     convert,
@@ -234,10 +236,16 @@ class TestConvert:
         assert ".section-view-detail *" in _JS_LINEARIZE_RECRUIT_PAGE
         assert ".content-right" in _JS_LINEARIZE_RECRUIT_PAGE
         assert ".content-left *" in _JS_LINEARIZE_RECRUIT_PAGE
+        assert "cssText += ';' +" in _JS_LINEARIZE_RECRUIT_PAGE
 
     def test_normalize_ocr_text_joins_korean_characters(self):
         assert _normalize_ocr_text("새 로 운 버 터") == "새로운버터"
         assert _normalize_ocr_text("Unity 프 로 그 래 머") == "Unity 프로그래머"
+
+    def test_find_ocr_fontfile_returns_first_existing_candidate(self):
+        existing = _OCR_FONT_CANDIDATES[1]
+        with patch("url2pdf.converter.Path.is_file", side_effect=[False, True]):
+            assert _find_ocr_fontfile() == existing
 
     def test_ocr_text_runs_join_near_korean_tokens_only(self):
         data = {
